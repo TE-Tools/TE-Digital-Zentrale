@@ -10,6 +10,12 @@ export interface Env {
   EINRICHTUNGSCODE?: string;
   /** Nur lokal: "1" erlaubt Anmeldung ohne Passkey auf localhost */
   DEV_LOGIN?: string;
+  /** Echtzeit-Verteiler (Durable Object, SQLite-basiert, Free-Tarif) */
+  LIVE: DurableObjectNamespace;
+  /** Optional: VAPID-Schlüssel als Secrets (sonst selbst erzeugt in D1) */
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 export interface Benutzer {

@@ -16,6 +16,8 @@ import {
   Trash2,
 } from 'lucide-preact';
 import { Fragment } from 'preact';
+import { useRef } from 'preact/hooks';
+import { Diktat } from '../komponenten/Diktat';
 import { Karte, Ladebalken, Pill } from '../komponenten/Bausteine';
 import { Dialog } from '../komponenten/Dialog';
 import { toast } from '../komponenten/Toast';
@@ -361,6 +363,7 @@ function Verlauf({ daten, mitarbeiter, gf, neuLaden }: { daten: AufgabeDetailDat
   const [art, setArt] = useState<NachrichtenArt>('information');
   const [von, setVon] = useState('gf');
   const [laeuft, setLaeuft] = useState(false);
+  const feld = useRef<HTMLTextAreaElement>(null);
 
   async function senden() {
     setLaeuft(true);
@@ -413,11 +416,12 @@ function Verlauf({ daten, mitarbeiter, gf, neuLaden }: { daten: AufgabeDetailDat
                 </select>
               </label>
             </div>
-            <textarea class="eingabe" rows={3} value={inhalt} onInput={(e) => setInhalt((e.target as HTMLTextAreaElement).value)} aria-label="Nachricht" placeholder="Antworten der Geschäftsführung fließen ins nächste Übergabepaket ein." />
+            <textarea ref={feld} class="eingabe" rows={3} value={inhalt} onInput={(e) => setInhalt((e.target as HTMLTextAreaElement).value)} aria-label="Nachricht" placeholder="Antworten der Geschäftsführung fließen ins nächste Übergabepaket ein." />
             <div>
               <button class="btn btn-primary btn-sm" disabled={laeuft || !inhalt.trim()} onClick={senden}>
                 <Send size={16} aria-hidden="true" /> Speichern
               </button>
+              <span style={{ marginLeft: 8 }}><Diktat ziel={() => feld.current} /></span>
             </div>
           </div>
         </details>

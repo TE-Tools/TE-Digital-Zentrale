@@ -1,4 +1,6 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
+import { Diktat } from '../komponenten/Diktat';
+import { NEUER_AUFTRAG_VORLAGE } from './Teilen';
 import { Send } from 'lucide-preact';
 import { Karte, Ladebalken } from '../komponenten/Bausteine';
 import { toast } from '../komponenten/Toast';
@@ -30,6 +32,18 @@ export function AufgabeNeu() {
   const [fehler, setFehler] = useState<string | null>(null);
   const [feldFehler, setFeldFehler] = useState<Record<string, string>>({});
   const [laeuft, setLaeuft] = useState(false);
+  const beschreibungRef = useRef<HTMLTextAreaElement>(null);
+  const titelRef = useRef<HTMLInputElement>(null);
+  // Vorlage aus dem Teilen-Ziel (einmalig)
+  const [vorlage] = useState<{ titel?: string; beschreibung?: string }>(() => {
+    try {
+      const v = sessionStorage.getItem(NEUER_AUFTRAG_VORLAGE);
+      sessionStorage.removeItem(NEUER_AUFTRAG_VORLAGE);
+      return v ? JSON.parse(v) : {};
+    } catch {
+      return {};
+    }
+  });
 
   if (!projekte.daten || !ma.daten) return <Ladebalken />;
 
@@ -71,12 +85,16 @@ export function AufgabeNeu() {
           <div class="formular-raster">
             <label class="feld breit">
               <span>Titel</span>
-              <input class="eingabe" name="titel" required minLength={3} maxLength={160} placeholder="z. B. Landingpage für den Familienplaner texten" autoFocus />
+              <div class="reihe" style={{ flexWrap: 'nowrap' }}>
+                <input ref={titelRef} class="eingabe" name="titel" required minLength={3} maxLength={160} placeholder="z. B. Landingpage für den Familienplaner texten" defaultValue={vorlage.titel?.slice(0, 160)} autoFocus />
+                <Diktat ziel={() => titelRef.current} label="" />
+              </div>
               {feldFehler.titel && <span class="feld-fehler">{feldFehler.titel}</span>}
             </label>
             <label class="feld breit">
               <span>Beschreibung</span>
-              <textarea class="eingabe" name="beschreibung" maxLength={8000} rows={5} placeholder="Tipp: Mit dem Mikrofon der Handy-Tastatur diktieren." />
+              <textarea ref={beschreibungRef} class="eingabe" name="beschreibung" maxLength={8000} rows={5} defaultValue={vorlage.beschreibung} placeholder="Auftrag beschreiben oder diktieren." />
+              <div><Diktat ziel={() => beschreibungRef.current} label="Beschreibung diktieren" /></div>
             </label>
             <label class="feld">
               <span>Projekt</span>

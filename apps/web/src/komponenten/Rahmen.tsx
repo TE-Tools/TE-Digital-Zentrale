@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { LayoutDashboard, ListChecks, Menu, Plus, ShieldCheck } from 'lucide-preact';
+import { LayoutDashboard, ListChecks, Menu, Plus, ShieldCheck, WifiOff } from 'lucide-preact';
+import { aufLiveZustand, liveZustand, type LiveZustand } from '../lib/live';
 import { initialen } from '../lib/format';
 import type { Benutzer } from '../lib/typen';
 import { useDaten } from '../lib/daten';
@@ -17,11 +18,27 @@ export function Rahmen(props: {
   aktionen?: ComponentChildren;
   offeneFreigaben?: number;
   ungelesen?: number;
+  meldungen?: number;
+  /** Zeitpunkt des letzten erfolgreichen Ladens (Offline-Anzeige) */
+  stand?: number | null;
   /** Erhöhen, um die Projektliste der Seitenleiste neu zu laden */
   projekteVersion?: number;
   children: ComponentChildren;
 }) {
   const [mehrOffen, setMehrOffen] = useState(false);
+  const [online, setOnline] = useState(navigator.onLine);
+  const [live, setLive] = useState<LiveZustand>(liveZustand());
+  useEffect(() => aufLiveZustand(setLive), []);
+  useEffect(() => {
+    const an = () => setOnline(true);
+    const aus = () => setOnline(false);
+    window.addEventListener('online', an);
+    window.addEventListener('offline', aus);
+    return () => {
+      window.removeEventListener('online', an);
+      window.removeEventListener('offline', aus);
+    };
+  }, []);
   const projekte = useDaten<{ projekte: ProjektKurz[] }>('/projekte', 300_000, props.projekteVersion);
   const sichtbare = (projekte.daten?.projekte ?? []).filter((p) => p.status !== 'archiviert');
 
@@ -49,6 +66,8 @@ export function Rahmen(props: {
               {b.text}
               {b.pfad === '/freigaben' && (props.offeneFreigaben ?? 0) > 0 ? (
                 <span class="badge">{props.offeneFreigaben}</span>
+              ) : b.pfad === '/benachrichtigungen' && (props.meldungen ?? 0) > 0 ? (
+                <span class="badge">{props.meldungen}</span>
               ) : b.pfad === '/kommunikation' && (props.ungelesen ?? 0) > 0 ? (
                 <span class="badge" title="Ungelesene Nachrichten an die Geschäftsführung">{props.ungelesen}</span>
               ) : b.phase ? (
@@ -70,6 +89,11 @@ export function Rahmen(props: {
             <b>{props.benutzer.name}</b>
             {props.benutzer.rolle === 'gf' ? 'Geschäftsführung' : 'Lesezugriff'}
           </span>
+          <span
+            class={`live-punkt ${live}`}
+            title={live === 'verbunden' ? 'Live verbunden – Änderungen erscheinen sofort' : live === 'verbinde' ? 'Verbinde …' : 'Nicht live – Aktualisierung jede Minute'}
+            aria-label={live === 'verbunden' ? 'Live verbunden' : 'Nicht live verbunden'}
+          />
         </div>
       </aside>
 
@@ -84,6 +108,12 @@ export function Rahmen(props: {
           </div>
           <div class="kopf-rechts">{props.aktionen}</div>
         </header>
+        {!online && (
+          <div class="offline-band" role="status">
+            <WifiOff size={16} aria-hidden="true" />
+            Offline – angezeigt wird der letzte Stand{props.stand ? ` von ${new Date(props.stand).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr` : ''}. Änderungen sind erst wieder mit Verbindung möglich.
+          </div>
+        )}
         <main class="inhalt" id="inhalt">
           {props.children}
         </main>
@@ -111,7 +141,7 @@ export function Rahmen(props: {
         <button class="unten-link" type="button" onClick={() => setMehrOffen(true)} aria-expanded={mehrOffen}>
           <Menu size={21} aria-hidden="true" />
           Mehr
-          {(props.ungelesen ?? 0) > 0 && <span class="badge">{props.ungelesen}</span>}
+          {(props.ungelesen ?? 0) + (props.meldungen ?? 0) > 0 && <span class="badge">{(props.ungelesen ?? 0) + (props.meldungen ?? 0)}</span>}
         </button>
       </nav>
 

@@ -30,7 +30,7 @@ export const BEREICHE: NavEintrag[] = [
   { pfad: '/freigaben', text: 'Entscheidungen & Freigaben', Icon: ShieldCheck },
   { pfad: '/wissen', text: 'Unternehmenswissen', Icon: BookOpen, phase: 6 },
   { pfad: '/berichte', text: 'Berichte', Icon: FileText, phase: 6 },
-  { pfad: '/benachrichtigungen', text: 'Benachrichtigungen', Icon: Bell, phase: 4 },
+  { pfad: '/benachrichtigungen', text: 'Benachrichtigungen', Icon: Bell },
   { pfad: '/einstellungen', text: 'Einstellungen & Verwaltung', Icon: Settings },
 ];
 

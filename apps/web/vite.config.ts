@@ -8,6 +8,14 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
+      // Eigener Service Worker (Push, Teilen-Ziel) – Precache-Liste wird von Workbox eingesetzt
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['**/*-cyrillic*', '**/*-greek*', '**/*-vietnamese*'],
+      },
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         id: '/',
@@ -22,20 +30,22 @@ export default defineConfig({
         theme_color: '#FBFAF7',
         background_color: '#FBFAF7',
         categories: ['business', 'productivity'],
+        // Android: „Teilen“ aus ChatGPT/Gemini/Grok direkt an die Zentrale (iOS unterstützt das für PWAs nicht)
+        share_target: {
+          action: '/teilen',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: { title: 'title', text: 'text', url: 'url' },
+        },
+        shortcuts: [
+          { name: 'Neuer Auftrag', short_name: 'Auftrag', url: '/aufgaben/neu', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+          { name: 'Freigaben', short_name: 'Freigaben', url: '/freigaben', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+        ],
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        // Nur lateinische Schrift-Teilmengen offline vorhalten (andere lädt der Browser bei Bedarf)
-        globIgnores: ['**/*-cyrillic*', '**/*-greek*', '**/*-vietnamese*'],
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
-        // API-Daten werden bewusst NICHT vom Service Worker gecacht (immer aktueller zentraler Stand).
-        runtimeCaching: [],
       },
     }),
   ],

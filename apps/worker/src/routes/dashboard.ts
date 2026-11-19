@@ -8,7 +8,7 @@ const dashboard = new Hono<AppEnv>();
 export type Unternehmensstatus = 'ok' | 'warnung' | 'kritisch';
 
 dashboard.get('/', async (c) => {
-  sitzungPflicht(c);
+  const s = sitzungPflicht(c);
   const db = c.env.DB;
   const heute = new Date().toISOString().slice(0, 10);
 
@@ -26,9 +26,10 @@ dashboard.get('/', async (c) => {
            (SELECT COUNT(*) FROM freigaben WHERE status = 'offen' AND dringend = 1) AS dringende_freigaben,
            (SELECT COUNT(*) FROM aufgaben WHERE status = 'blockiert' AND prioritaet IN ('hoch','kritisch')) AS kritisch_blockiert,
            (SELECT COUNT(*) FROM aufgaben WHERE status = 'pruefung') AS in_pruefung,
-           (SELECT COUNT(*) FROM nachrichten WHERE an = 'gf' AND gelesen_am IS NULL) AS ungelesen`,
+           (SELECT COUNT(*) FROM nachrichten WHERE an = 'gf' AND gelesen_am IS NULL) AS ungelesen,
+           (SELECT COUNT(*) FROM benachrichtigungen WHERE benutzer_id = ? AND gelesen_am IS NULL) AS meldungen_ungelesen`,
       )
-      .bind(heute),
+      .bind(heute, s.benutzer.id),
     db.prepare(
       `SELECT m.id, m.name, m.rolle, m.anbieter, m.zugang, m.arbeitsweg, ${EFFEKTIVER_STATUS} AS status, m.status_bestaetigt_am, m.limit_bis, m.farbe,
               (SELECT a.id || ' · ' || a.titel FROM aufgaben a

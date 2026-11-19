@@ -13,6 +13,8 @@ import {
   Sparkles,
 } from 'lucide-preact';
 import { FREIGABE_TYP } from '../lib/texte';
+import { vorlesen } from '../komponenten/Diktat';
+import { Volume2 } from 'lucide-preact';
 import { Karte, Kennzahl, Ladebalken, Leer, Pill } from '../komponenten/Bausteine';
 import { MitarbeiterKarte } from '../komponenten/Mitarbeiter';
 import { aktivitaetLink, aktivitaetText, begruessung, datumLang, relativeZeit, toenung } from '../lib/format';
@@ -51,6 +53,26 @@ export function Dashboard({ benutzer, daten, fehler }: { benutzer: Benutzer; dat
           </div>
         </div>
         <div class="statusband-aktionen">
+          {'speechSynthesis' in window && (
+            <button
+              class="btn btn-ghost"
+              onClick={() =>
+                vorlesen(
+                  [
+                    `${begruessung()}. ${st.text}.`,
+                    `${z.in_arbeit} ${z.in_arbeit === 1 ? 'Aufgabe' : 'Aufgaben'} in Bearbeitung, ${z.in_pruefung} zur Prüfung.`,
+                    z.offene_freigaben ? `${z.offene_freigaben} offene ${z.offene_freigaben === 1 ? 'Freigabe' : 'Freigaben'}.` : 'Keine offenen Freigaben.',
+                    daten.rueckfragen.length ? `${daten.rueckfragen.length} ${daten.rueckfragen.length === 1 ? 'Rückfrage wartet' : 'Rückfragen warten'} auf Sie.` : '',
+                    daten.fortsetzbar.length ? `${daten.fortsetzbar.length} pausierte ${daten.fortsetzbar.length === 1 ? 'Aufgabe kann' : 'Aufgaben können'} fortgesetzt werden.` : '',
+                    z.blockiert ? `${z.blockiert} blockiert.` : '',
+                  ].filter(Boolean).join(' '),
+                )
+              }
+              title="Status vorlesen"
+            >
+              <Volume2 size={18} aria-hidden="true" /> Vorlesen
+            </button>
+          )}
           <a class="btn btn-gold" href="/aufgaben/neu">
             <Plus size={18} aria-hidden="true" /> Neuer Auftrag
           </a>

@@ -9,6 +9,7 @@ import { erzeugePaket, pruefePaket, type PaketDaten } from '../lib/paket';
 import { gfPflicht, sitzungPflicht } from '../lib/sitzung';
 import { AUFGABEN_STATUS, istErlaubt, OFFEN, type AufgabenStatus } from '../lib/status';
 import { inMinuten, jetzt } from '../lib/zeit';
+import { meldenAusRoute } from './benachrichtigungen';
 
 const aufgaben = new Hono<AppEnv>();
 
@@ -315,6 +316,10 @@ aufgaben.patch('/:id', async (c) => {
     }),
   ]);
   if ((res[0]?.meta.changes ?? 0) === 0) throw new ApiFehler(409, 'veraltet', 'Die Aufgabe wurde gleichzeitig geändert. Bitte neu laden.');
+  const prio = d.prioritaet ?? alt.prioritaet;
+  if (neuStatus === 'blockiert' && alt.status !== 'blockiert' && (prio === 'hoch' || prio === 'kritisch')) {
+    await meldenAusRoute(c, { kategorie: 'kritisch', titel: `Blockiert: ${id}`, text: d.titel ?? alt.titel, url: `/aufgaben/${id}` });
+  }
   return c.json({ ok: true, version: d.version + 1 });
 });
 
@@ -424,6 +429,12 @@ aufgaben.post('/:id/ergebnis', async (c) => {
     }),
   );
   await db.batch(stmts);
+  await meldenAusRoute(c, {
+    kategorie: 'wichtig',
+    titel: `Neues Ergebnis zu ${id}`,
+    text: [a.titel, fragen && 'mit Rückfrage', freigabeId && `Freigabe ${freigabeId} beantragt`].filter(Boolean).join(' · '),
+    url: `/aufgaben/${id}`,
+  });
   return c.json({
     ok: true,
     status: neuStatus,

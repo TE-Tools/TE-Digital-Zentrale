@@ -15,6 +15,9 @@ import { AufgabeNeu } from './seiten/AufgabeNeu';
 import { Aufgaben } from './seiten/Aufgaben';
 import { Freigaben } from './seiten/Freigaben';
 import { Kommunikation } from './seiten/Kommunikation';
+import { Benachrichtigungen } from './seiten/Benachrichtigungen';
+import { Teilen } from './seiten/Teilen';
+import { liveBeenden, liveStarten } from './lib/live';
 import { Dashboard } from './seiten/Dashboard';
 import { Einstellungen } from './seiten/Einstellungen';
 import { MitarbeiterSeite } from './seiten/MitarbeiterSeite';
@@ -63,7 +66,13 @@ function Angemeldet({ benutzer, abgemeldet }: { benutzer: Benutzer; abgemeldet: 
   const [projekteVersion, setProjekteVersion] = useState(0);
   const projekteGeaendert = useCallback(() => setProjekteVersion((v) => v + 1), []);
   // Dashboard-Daten auch für die Freigaben-Badges im Rahmen; Polling 60 s (Free-Tarif sparsam)
-  const dash = useDaten<DashboardDaten>('/dashboard', 60_000, projekteVersion);
+  const dash = useDaten<DashboardDaten>('/dashboard', 60_000, projekteVersion, 'dashboard');
+
+  // Echtzeit-Verbindung, solange angemeldet
+  useEffect(() => {
+    liveStarten();
+    return () => liveBeenden();
+  }, []);
 
   // Sitzung abgelaufen → zurück zur Anmeldung
   useEffect(() => {
@@ -72,13 +81,15 @@ function Angemeldet({ benutzer, abgemeldet }: { benutzer: Benutzer; abgemeldet: 
 
   let seite;
   let m: Record<string, string> | null;
-  if (pfad === '/') seite = <Dashboard benutzer={benutzer} daten={dash.daten} fehler={dash.fehler?.message ?? null} />;
+  if (pfad === '/') seite = <Dashboard benutzer={benutzer} daten={dash.daten} fehler={dash.daten ? null : dash.fehler?.message ?? null} />;
   else if (pfad === '/mitarbeiter') seite = <MitarbeiterSeite benutzer={benutzer} />;
   else if (pfad === '/aufgaben') seite = <Aufgaben key={location.search} benutzer={benutzer} />;
   else if (pfad === '/kommunikation') seite = <Kommunikation benutzer={benutzer} gelesen={projekteGeaendert} />;
   else if (pfad === '/freigaben') seite = <Freigaben benutzer={benutzer} geaendert={projekteGeaendert} />;
   else if (pfad === '/projekte') seite = <Projekte benutzer={benutzer} geaendert={projekteGeaendert} />;
   else if ((m = passt('/projekte/:slug', pfad))) seite = <ProjektDetail key={m.slug} slug={m.slug!} benutzer={benutzer} geaendert={projekteGeaendert} />;
+  else if (pfad === '/benachrichtigungen') seite = <Benachrichtigungen gelesen={projekteGeaendert} />;
+  else if (pfad === '/teilen') seite = benutzer.rolle === 'gf' ? <Teilen /> : <NichtGefunden />;
   else if (pfad === '/einstellungen') seite = <Einstellungen benutzer={benutzer} abgemeldet={abgemeldet} />;
   else if (pfad === '/aufgaben/neu') seite = benutzer.rolle === 'gf' ? <AufgabeNeu key={location.search} /> : <NichtGefunden />;
   else if ((m = passt('/aufgaben/:id', pfad))) seite = <AufgabeDetail key={m.id} id={m.id!} benutzer={benutzer} />;
@@ -96,6 +107,8 @@ function Angemeldet({ benutzer, abgemeldet }: { benutzer: Benutzer; abgemeldet: 
         kicker={kopf.kicker}
         offeneFreigaben={dash.daten?.zahlen.offene_freigaben}
         ungelesen={dash.daten?.zahlen.ungelesen}
+        meldungen={dash.daten?.zahlen.meldungen_ungelesen}
+        stand={dash.stand}
         projekteVersion={projekteVersion}
       >
         {seite}

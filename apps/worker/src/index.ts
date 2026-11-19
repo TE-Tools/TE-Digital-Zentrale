@@ -1,7 +1,10 @@
 import { Hono } from 'hono';
 import type { AppEnv } from './env';
 import { ApiFehler } from './lib/fehler';
-import { sitzungLaden } from './lib/sitzung';
+import { sitzungLaden, sitzungPflicht } from './lib/sitzung';
+import { cronAusfuehren } from './cron';
+import { liveSenden, liveStub, ZentraleLive } from './live';
+import benachrichtigungen from './routes/benachrichtigungen';
 import aufgaben from './routes/aufgaben';
 import auth from './routes/auth';
 import dashboard from './routes/dashboard';
@@ -24,6 +27,7 @@ const SICHERHEITS_HEADER: Record<string, string> = {
 
 app.use('/api/*', async (c, next) => {
   await next();
+  if (c.res.status === 101) return; // WebSocket-Antwort nicht verändern
   for (const [k, v] of Object.entries(SICHERHEITS_HEADER)) c.res.headers.set(k, v);
 });
 
@@ -48,6 +52,29 @@ app.use('/api/*', async (c, next) => {
 
 app.use('/api/*', sitzungLaden);
 
+/** Nach jeder erfolgreichen Änderung alle verbundenen Geräte benachrichtigen (nur Signal, keine Daten). */
+app.use('/api/*', async (c, next) => {
+  await next();
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(c.req.method) && c.res.status < 400 && !c.req.path.startsWith('/api/auth/')) {
+    const arbeit = liveSenden(c.env, { art: 'geaendert', pfad: c.req.path });
+    try {
+      c.executionCtx.waitUntil(arbeit);
+    } catch {
+      await arbeit;
+    }
+  }
+});
+
+/** Echtzeit-Verbindung (WebSocket) – nur angemeldet und nur von eigener/erlaubter Origin. */
+app.get('/api/live', async (c) => {
+  sitzungPflicht(c);
+  if (c.req.header('upgrade') !== 'websocket') throw new ApiFehler(426, 'websocket_erwartet', 'WebSocket erwartet.');
+  const origin = c.req.header('origin');
+  const erlaubt = [new URL(c.req.url).origin, ...c.env.ERLAUBTE_ORIGINS.split(',').map((o) => o.trim())];
+  if (!origin || !erlaubt.includes(origin)) throw new ApiFehler(403, 'origin', 'Verbindung abgelehnt.');
+  return liveStub(c.env).fetch(c.req.raw);
+});
+
 app.get('/api/gesundheit', (c) => c.json({ ok: true, dienst: 'te-zentrale' }));
 app.route('/api/auth', auth);
 app.route('/api/dashboard', dashboard);
@@ -57,6 +84,7 @@ app.route('/api/aufgaben', aufgaben);
 app.route('/api/nachrichten', nachrichten);
 app.route('/api/entscheidungen', entscheidungen);
 app.route('/api/freigaben', freigaben);
+app.route('/api/benachrichtigungen', benachrichtigungen);
 
 app.all('/api/*', () => {
   throw new ApiFehler(404, 'nicht_gefunden', 'Unbekannter Endpunkt.');
@@ -73,6 +101,11 @@ app.onError((err, c) => {
   return c.json({ fehler: { code: 'serverfehler', meldung: 'Interner Fehler.' } }, 500);
 });
 
+export { ZentraleLive };
+
 export default {
   fetch: app.fetch,
+  async scheduled(_ctrl, env, ctx) {
+    ctx.waitUntil(cronAusfuehren(env).then((s) => console.log('Cron', JSON.stringify(s))));
+  },
 } satisfies ExportedHandler<AppEnv['Bindings']>;

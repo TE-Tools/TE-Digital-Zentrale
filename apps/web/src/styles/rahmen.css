@@ -94,3 +94,13 @@
 .blatt .nav-link { padding: 12px; font-size: 15.5px; }
 @keyframes einblenden { from { opacity: 0; } }
 @keyframes hochfahren { from { transform: translateY(24px); opacity: 0; } }
+
+/* Live-Status & Offline */
+.live-punkt { width: 9px; height: 9px; border-radius: 50%; margin-left: auto; flex-shrink: 0; background: var(--line-2); }
+.live-punkt.verbunden { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-wash); }
+.live-punkt.verbinde { background: var(--warn); }
+.offline-band {
+  display: flex; align-items: center; gap: 8px; padding: 8px 28px; font-size: 13.5px;
+  background: var(--warn-wash); color: var(--warn); border-bottom: 1px solid var(--line);
+}
+@media (max-width: 960px) { .offline-band { padding: 8px 16px; } }

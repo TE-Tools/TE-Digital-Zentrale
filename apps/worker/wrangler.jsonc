@@ -31,16 +31,30 @@
   },
   "observability": { "enabled": true },
 
+  // Echtzeit: ein SQLite-basiertes Durable Object (im Free-Tarif erlaubt), Namespace mit EU-Jurisdiktion im Code
+  "durable_objects": {
+    "bindings": [{ "name": "LIVE", "class_name": "ZentraleLive" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ZentraleLive"] }],
+
+  // Alle 15 Minuten: abgelaufene Limit-Pausen, zurückgestellte Meldungen, Tagesbericht
+  "triggers": { "crons": ["*/15 * * * *"] },
+
   // Produktion: npx wrangler deploy --env produktion
   // Vorher (Stufe-3-Freigabe!): D1 in der EU anlegen und ID eintragen:
   //   npx wrangler d1 create te-zentrale-db --jurisdiction eu
   //   npx wrangler d1 migrations apply te-zentrale-db --remote --env produktion
   //   npx wrangler secret put EINRICHTUNGSCODE --env produktion
+  //   optional: node scripts/vapid.mjs → VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY als Secrets
   "env": {
     "produktion": {
       "name": "te-zentrale",
       "workers_dev": false,
       "routes": [{ "pattern": "zentrale.te-alltagshelfer.org", "custom_domain": true }],
+      "durable_objects": {
+        "bindings": [{ "name": "LIVE", "class_name": "ZentraleLive" }]
+      },
+      "triggers": { "crons": ["*/15 * * * *"] },
       "d1_databases": [
         {
           "binding": "DB",

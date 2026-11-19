@@ -6,6 +6,7 @@ import { body, pruefeTeilnehmer } from '../lib/eingabe';
 import { ApiFehler } from '../lib/fehler';
 import { gfPflicht, sitzungPflicht } from '../lib/sitzung';
 import { jetzt } from '../lib/zeit';
+import { meldenAusRoute } from './benachrichtigungen';
 
 const nachrichten = new Hono<AppEnv>();
 
@@ -84,6 +85,14 @@ nachrichten.post('/', async (c) => {
     }),
   ]);
   const id = (res[0]?.results[0] as { id: number } | undefined)?.id;
+  if (d.von !== 'gf' && (d.an === 'gf' || d.an === null) && ['eskalation', 'warnung', 'rueckfrage'].includes(d.art)) {
+    await meldenAusRoute(c, {
+      kategorie: d.art === 'eskalation' ? 'kritisch' : 'wichtig',
+      titel: `${d.art === 'eskalation' ? 'Eskalation' : d.art === 'warnung' ? 'Warnung' : 'Rückfrage'}${d.aufgabe_id ? ` zu ${d.aufgabe_id}` : ''}`,
+      text: d.inhalt.slice(0, 200),
+      url: d.aufgabe_id ? `/aufgaben/${d.aufgabe_id}` : '/kommunikation',
+    });
+  }
   return c.json({ ok: true, id }, 201);
 });
 

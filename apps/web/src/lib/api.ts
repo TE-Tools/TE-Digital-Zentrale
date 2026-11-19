@@ -9,7 +9,7 @@ export class ApiFehler extends Error {
   }
 }
 
-type Methode = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type Methode = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 async function anfrage<T>(methode: Methode, pfad: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -45,5 +45,6 @@ export const api = {
   get: <T>(pfad: string) => anfrage<T>('GET', pfad),
   post: <T>(pfad: string, body: unknown = {}) => anfrage<T>('POST', pfad, body),
   patch: <T>(pfad: string, body: unknown) => anfrage<T>('PATCH', pfad, body),
+  put: <T>(pfad: string, body: unknown) => anfrage<T>('PUT', pfad, body),
   delete: <T>(pfad: string) => anfrage<T>('DELETE', pfad),
 };

@@ -5,6 +5,7 @@ import { auditStatement } from '../lib/audit';
 import { body, naechsteId, pruefeTeilnehmer } from '../lib/eingabe';
 import { ApiFehler } from '../lib/fehler';
 import { gfPflicht, sitzungPflicht, stepUpPflicht } from '../lib/sitzung';
+import { meldenAusRoute } from './benachrichtigungen';
 import { jetzt } from '../lib/zeit';
 
 const freigaben = new Hono<AppEnv>();
@@ -62,6 +63,13 @@ freigaben.post('/', async (c) => {
     ...stmts,
     auditStatement(db, s, { aktion: 'freigabe.beantragt', objektTyp: 'freigabe', objektId: id, projektSlug: projekt, details: { typ: d.typ } }),
   ]);
+  await meldenAusRoute(c, {
+    kategorie: d.dringend ? 'kritisch' : 'wichtig',
+    titel: `${d.dringend ? 'Dringende ' : ''}Freigabe erforderlich: ${d.titel}`,
+    text: `${id}${d.aufgabe_id ? ` · Aufgabe ${d.aufgabe_id}` : ''}`,
+    url: '/freigaben',
+    schluessel: `freigabe:${id}`,
+  });
   return c.json({ ok: true, id }, 201);
 });
 

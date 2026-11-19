@@ -84,6 +84,7 @@ export interface Dashboard {
     dringende_freigaben: number;
     in_pruefung: number;
     ungelesen: number;
+    meldungen_ungelesen: number;
   };
   mitarbeiter: Mitarbeiter[];
   projekte: { slug: string; name: string; kurz: string; farbe: string; status: ProjektStatus; offen: number; fertig: number; blockiert: number }[];

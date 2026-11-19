@@ -2,7 +2,7 @@
 
 Zentrale Unternehmenssteuerung von TE-Digital als PWA: KI-Mitarbeiter, Projekte, Aufgaben, Freigaben und Unternehmenswissen. Grundlage sind das Pflichtenheft v1.0 und der freigegebene Plan in [docs/Bestandsaufnahme-und-Implementierungsplan.md](docs/Bestandsaufnahme-und-Implementierungsplan.md).
 
-**Stand:** Phase 3 (Agentenverwaltung) – lokal lauffähig, noch nicht in Cloudflare angelegt.
+**Stand:** Phase 4 (Benachrichtigungen & mobile Bedienung) – lokal lauffähig, noch nicht in Cloudflare angelegt. Repository: https://github.com/TE-Tools/TE-Digital-Zentrale
 
 ## Aufbau
 
@@ -45,6 +45,23 @@ npm run pruefen    # Typprüfung, Tests (Worker + Web), Produktions-Build
 6. **Statusregeln:** Eine Aufgabe startet erst, wenn ihre Abhängigkeiten erledigt sind. Abschließen geht nur mit bestandener (oder nicht nötiger) Prüfung und ohne offene Freigabe. Den Status *Freigabe erforderlich* setzt nur ein Freigabeantrag.
 
 Alle Nachrichten (Übergaben, Ergebnisberichte, Rückfragen, Warnungen …) liegen zentral unter *Kommunikation*. Eine Stufe-2-Entscheidung benachrichtigt Projektleitung und Geschäftsführung automatisch.
+
+## Benachrichtigungen, Echtzeit & Mobil (Phase 4)
+
+- **Web Push** ohne fremden Dienst (RFC 8291/8292, aus orchester-orga übernommen). Die Geräte meldet man unter *Benachrichtigungen* an. **iPhone:** Push erst, wenn die Zentrale zum Home-Bildschirm hinzugefügt ist (iOS ab 16.4). VAPID-Schlüssel: optional als Secrets (`node scripts/vapid.mjs` erzeugt ein Paar). Sonst erzeugt der Worker sie einmalig in D1.
+- **Kategorien:**
+  - *kritisch*: sofort, auch in der Ruhezeit
+  - *wichtig*: sofort, stündlich gebündelt oder aus
+  - *Tagesbericht*: zur eingestellten Uhrzeit
+- **Ruhezeit:** Wichtige Meldungen warten bis zu ihrem Ende.
+- Für eigene Aktionen gibt es keinen Push, nur einen gelesenen Eintrag im Posteingang.
+- **Cron** alle 15 Minuten: abgelaufene Limit-Pausen („wieder verfügbar, fortsetzen“), zurückgestellte und gebündelte Meldungen, Tagesbericht.
+- **Echtzeit:** ein SQLite-Durable-Object (`ZentraleLive`, EU-Jurisdiktion) verteilt per WebSocket (Hibernation) nur das Signal „geändert“. Die Geräte laden dann über die API nach. Ohne Live-Verbindung wird jede Minute neu geladen.
+- **Teilen-Ziel (Android):** In ChatGPT, Gemini oder Grok „Teilen → TE-Zentrale“ wählen. Der Service Worker nimmt den Text an, ohne ihn in die URL zu schreiben. Danach lässt er sich als Antwort zu einer Aufgabe übernehmen, als neuer Auftrag anlegen oder als Notiz ablegen.
+- **Sprache:**
+  - Diktat-Knopf über die Web Speech API (Chrome/Edge über Google, Safari über Apple, kostenlos, mit einmaligem Datenschutzhinweis). Das Tastatur-Mikrofon geht immer.
+  - „Vorlesen“ des Unternehmensstatus über die Gerätestimme.
+- **Offline:** Die App-Hülle ist vorgehalten. Das Dashboard zeigt den letzten Stand mit Uhrzeit, dazu einen Offline-Hinweis.
 
 ## Sicherheit (Phase 2)
 
