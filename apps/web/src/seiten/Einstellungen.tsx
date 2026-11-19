@@ -2,6 +2,8 @@ import { useState } from 'preact/hooks';
 import { startRegistration } from '@simplewebauthn/browser';
 import { GitBranch, KeyRound, LogOut, Monitor, Moon, Sun } from 'lucide-preact';
 import { Karte, Pill } from '../komponenten/Bausteine';
+import { GithubVerbindung } from '../komponenten/GithubVerbindung';
+import { KiZugaenge } from '../komponenten/KiZugaenge';
 import { ApiFehler, api } from '../lib/api';
 import { useDaten } from '../lib/daten';
 import { datum, relativeZeit } from '../lib/format';
@@ -108,15 +110,12 @@ export function Einstellungen({ benutzer, abgemeldet }: { benutzer: Benutzer; ab
           {meldung && <p class="zeitstempel" role="status" style={{ marginTop: 10 }}>{meldung}</p>}
         </Karte>
         <div class="abstand" />
-        <Karte titel="GitHub-Verbindung" kicker="Integration">
-          <div class="hinweis">
-            <GitBranch size={18} aria-hidden="true" />
-            <p>
-              <b>Folgt in Phase 5.</b> Sie richten die Verbindung hier selbst ein: GitHub-App bestätigen, Repositories auf GitHub auswählen, fertig.
-              Schlüssel werden verschlüsselt gespeichert, jede Änderung erfordert eine Passkey-Bestätigung.
-            </p>
+        {benutzer.rolle === 'gf' ? (
+          <div style={{ display: 'grid', gap: 18 }}>
+            <GithubVerbindung />
+            <KiZugaenge />
           </div>
-        </Karte>
+        ) : null}
       </div>
     </div>
   );

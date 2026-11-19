@@ -17,6 +17,7 @@ import { Freigaben } from './seiten/Freigaben';
 import { Kommunikation } from './seiten/Kommunikation';
 import { Benachrichtigungen } from './seiten/Benachrichtigungen';
 import { Teilen } from './seiten/Teilen';
+import { Entwicklung } from './seiten/Entwicklung';
 import { liveBeenden, liveStarten } from './lib/live';
 import { Dashboard } from './seiten/Dashboard';
 import { Einstellungen } from './seiten/Einstellungen';
@@ -88,6 +89,7 @@ function Angemeldet({ benutzer, abgemeldet }: { benutzer: Benutzer; abgemeldet: 
   else if (pfad === '/freigaben') seite = <Freigaben benutzer={benutzer} geaendert={projekteGeaendert} />;
   else if (pfad === '/projekte') seite = <Projekte benutzer={benutzer} geaendert={projekteGeaendert} />;
   else if ((m = passt('/projekte/:slug', pfad))) seite = <ProjektDetail key={m.slug} slug={m.slug!} benutzer={benutzer} geaendert={projekteGeaendert} />;
+  else if (pfad === '/entwicklung') seite = <Entwicklung key={location.search} benutzer={benutzer} />;
   else if (pfad === '/benachrichtigungen') seite = <Benachrichtigungen gelesen={projekteGeaendert} />;
   else if (pfad === '/teilen') seite = benutzer.rolle === 'gf' ? <Teilen /> : <NichtGefunden />;
   else if (pfad === '/einstellungen') seite = <Einstellungen benutzer={benutzer} abgemeldet={abgemeldet} />;

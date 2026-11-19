@@ -20,8 +20,8 @@ export function auditStatement(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
-      akteur ? 'benutzer' : 'system',
-      akteur?.benutzer.id ?? null,
+      !akteur ? 'system' : akteur.benutzer.rolle === 'agent' ? 'mitarbeiter' : 'benutzer',
+      akteur?.benutzer.rolle === 'agent' ? akteur.benutzer.id.replace(/^ma:/, '') : (akteur?.benutzer.id ?? null),
       akteur?.benutzer.name ?? 'System',
       eintrag.aktion,
       eintrag.objektTyp ?? null,

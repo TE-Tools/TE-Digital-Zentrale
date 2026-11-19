@@ -6,6 +6,7 @@ import { body, naechsteId, pruefeTeilnehmer } from '../lib/eingabe';
 import { ApiFehler } from '../lib/fehler';
 import { gfPflicht, sitzungPflicht, stepUpPflicht } from '../lib/sitzung';
 import { meldenAusRoute } from './benachrichtigungen';
+import { agentVon, pruefeEigeneAufgabe, pruefeProjekt, schreiberPflicht } from '../lib/agent';
 import { jetzt } from '../lib/zeit';
 
 const freigaben = new Hono<AppEnv>();
@@ -38,15 +39,19 @@ const Neu = z.object({
 
 /** Freigabe beantragen. Mit Aufgabenbezug wird die Aufgabe angehalten (Status „Freigabe erforderlich“). */
 freigaben.post('/', async (c) => {
-  const s = gfPflicht(c);
+  const s = schreiberPflicht(c);
   const d = await body(c, Neu);
+  const agent = agentVon(c);
+  if (agent) d.angefragt_von = agent.mitarbeiterId;
   const db = c.env.DB;
   await pruefeTeilnehmer(db, d.angefragt_von);
+  if (agent && !d.aufgabe_id) pruefeProjekt(c, d.projekt_slug);
   let projekt = d.projekt_slug;
   const stmts: D1PreparedStatement[] = [];
   if (d.aufgabe_id) {
-    const a = await db.prepare('SELECT projekt_slug, status FROM aufgaben WHERE id = ?').bind(d.aufgabe_id).first<{ projekt_slug: string; status: string }>();
+    const a = await db.prepare('SELECT projekt_slug, status, zustaendig_id FROM aufgaben WHERE id = ?').bind(d.aufgabe_id).first<{ projekt_slug: string; status: string; zustaendig_id: string | null }>();
     if (!a) throw new ApiFehler(400, 'aufgabe_unbekannt', 'Die Aufgabe existiert nicht.');
+    pruefeEigeneAufgabe(c, a);
     if (a.status === 'abgeschlossen' || a.status === 'abgebrochen') throw new ApiFehler(409, 'aufgabe_beendet', 'Die Aufgabe ist bereits beendet.');
     projekt = a.projekt_slug;
     stmts.push(

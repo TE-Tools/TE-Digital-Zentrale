@@ -8,6 +8,7 @@ import type { Env } from './env';
 import { anGeraeteSenden, basisUrl, einstellungenLaden, melden } from './lib/melden';
 import { berlin, inRuhezeit, jetzt } from './lib/zeit';
 import { liveSenden } from './live';
+import { abgleichen, verbindungLaden } from './lib/github';
 
 export async function cronAusfuehren(env: Env, jetztDatum: Date = new Date()): Promise<{ limits: number; versendet: number; berichte: number }> {
   const basis = basisUrl(env);
@@ -94,6 +95,12 @@ export async function cronAusfuehren(env: Env, jetztDatum: Date = new Date()): P
         .run();
       stats.berichte++;
     }
+  }
+
+  // 4 – GitHub-Abgleich einmal pro Stunde (Webhooks halten den Rest aktuell)
+  if (zeit.minute < 15) {
+    const v = await verbindungLaden(env);
+    if (v.status === 'installiert') await abgleichen(env).catch((e) => console.error('GitHub-Abgleich', e));
   }
 
   if (stats.limits || stats.berichte) await liveSenden(env, { art: 'geaendert', quelle: 'cron' });

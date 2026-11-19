@@ -7,3 +7,8 @@ EINRICHTUNGSCODE=bitte-lokal-aendern
 # NUR LOKAL: erlaubt eine Anmeldung ohne Passkey auf localhost (für Tests im Browser ohne Authenticator).
 # Wird ignoriert, sobald der Aufruf nicht von localhost/127.0.0.1 kommt. In Produktion NIE setzen.
 DEV_LOGIN=1
+
+# 32 Byte (base64url) – verschlüsselt gespeicherte GitHub-App-Schlüssel. Erzeugen:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+# Produktion: npx wrangler secret put ZENTRALE_SCHLUESSEL --env produktion
+ZENTRALE_SCHLUESSEL=

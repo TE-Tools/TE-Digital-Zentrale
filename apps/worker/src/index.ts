@@ -5,6 +5,12 @@ import { sitzungLaden, sitzungPflicht } from './lib/sitzung';
 import { cronAusfuehren } from './cron';
 import { liveSenden, liveStub, ZentraleLive } from './live';
 import benachrichtigungen from './routes/benachrichtigungen';
+import entwicklung from './routes/entwicklung';
+import github from './routes/github';
+import sperren from './routes/sperren';
+import zugaenge from './routes/zugaenge';
+import { agentLaden } from './lib/agent';
+import { mcpBehandeln } from './mcp';
 import aufgaben from './routes/aufgaben';
 import auth from './routes/auth';
 import dashboard from './routes/dashboard';
@@ -36,6 +42,8 @@ app.use('/api/*', async (c, next) => {
  * erlaubten Origin kommen. Fremde Seiten können diesen Header ohne CORS-Freigabe nicht setzen.
  */
 app.use('/api/*', async (c, next) => {
+  // GitHub-Webhooks sind per HMAC-Signatur gesichert (kein Cookie, kein CSRF-Header)
+  if (c.req.path === '/api/github/webhook') return next();
   if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)) {
     if (c.req.header('x-te-anfrage') !== '1') {
       throw new ApiFehler(403, 'csrf', 'Anfrage abgelehnt.');
@@ -51,6 +59,25 @@ app.use('/api/*', async (c, next) => {
 });
 
 app.use('/api/*', sitzungLaden);
+app.use('/api/*', agentLaden);
+
+/**
+ * KI-Mitarbeiter (MCP, interne Aufrufe) dürfen nur diese Routen nutzen – alles andere wird abgelehnt,
+ * unabhängig von den Prüfungen in den Routen selbst (doppelte Sicherung).
+ */
+const AGENT_WEGE: [string, RegExp][] = [
+  ['GET', /^\/api\/aufgaben\/TD-\d{4,}\/paket$/],
+  ['PATCH', /^\/api\/aufgaben\/TD-\d{4,}$/],
+  ['POST', /^\/api\/aufgaben\/TD-\d{4,}\/(ergebnis|checkpoint|limit)$/],
+  ['POST', /^\/api\/(nachrichten|freigaben|entscheidungen|sperren)$/],
+  ['POST', /^\/api\/sperren\/\d+\/freigeben$/],
+];
+app.use('/api/*', async (c, next) => {
+  if (c.get('agent') && !AGENT_WEGE.some(([m, re]) => m === c.req.method && re.test(c.req.path))) {
+    throw new ApiFehler(403, 'agent_nicht_erlaubt', 'Für KI-Mitarbeiter nicht freigegeben.');
+  }
+  await next();
+});
 
 /** Nach jeder erfolgreichen Änderung alle verbundenen Geräte benachrichtigen (nur Signal, keine Daten). */
 app.use('/api/*', async (c, next) => {
@@ -85,6 +112,13 @@ app.route('/api/nachrichten', nachrichten);
 app.route('/api/entscheidungen', entscheidungen);
 app.route('/api/freigaben', freigaben);
 app.route('/api/benachrichtigungen', benachrichtigungen);
+app.route('/api/sperren', sperren);
+app.route('/api/zugaenge', zugaenge);
+app.route('/api/github', github);
+app.route('/api/entwicklung', entwicklung);
+
+/** MCP-Server für Claude Code / Claude.ai (eigene Token-Authentifizierung, siehe mcp.ts) */
+app.all('/mcp', (c) => mcpBehandeln(c.req.raw, c.env, c.executionCtx as unknown as ExecutionContext, app));
 
 app.all('/api/*', () => {
   throw new ApiFehler(404, 'nicht_gefunden', 'Unbekannter Endpunkt.');

@@ -16,12 +16,26 @@ export interface Env {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
+  /** Secret: 32 Byte (base64url) zum Verschlüsseln gespeicherter GitHub-Schlüssel */
+  ZENTRALE_SCHLUESSEL?: string;
+  /** Organisation für die GitHub-App (Standard TE-Tools) */
+  GITHUB_ORGANISATION?: string;
 }
 
 export interface Benutzer {
   id: string;
   name: string;
-  rolle: 'gf' | 'leser';
+  /** 'agent' = KI-Mitarbeiter über MCP (Pseudo-Sitzung, nie Geschäftsführungsrechte) */
+  rolle: 'gf' | 'leser' | 'agent';
+}
+
+export interface AgentKontext {
+  zugangId: number;
+  mitarbeiterId: string;
+  name: string;
+  rolle: string;
+  /** erlaubte Projekte, null = alle */
+  projekte: string[] | null;
 }
 
 export interface SitzungsInfo {
@@ -34,5 +48,6 @@ export type AppEnv = {
   Bindings: Env;
   Variables: {
     sitzung: SitzungsInfo | null;
+    agent: AgentKontext | null;
   };
 };

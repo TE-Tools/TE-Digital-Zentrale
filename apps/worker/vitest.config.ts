@@ -17,6 +17,10 @@ export default defineConfig({
           TEST_MIGRATIONS: await readD1Migrations(hier('./migrations')),
           EINRICHTUNGSCODE: 'test-einrichtungscode',
           DEV_LOGIN: '1',
+          // Unabhängig von lokalen .dev.vars: Tests setzen benötigte Schlüssel selbst
+          ZENTRALE_SCHLUESSEL: '',
+          VAPID_PUBLIC_KEY: '',
+          VAPID_PRIVATE_KEY: '',
         },
       },
     })),

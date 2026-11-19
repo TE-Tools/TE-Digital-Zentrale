@@ -4,7 +4,8 @@ import type { AppEnv } from '../env';
 import { auditStatement } from '../lib/audit';
 import { body, naechsteId, pruefeTeilnehmer } from '../lib/eingabe';
 import { ApiFehler } from '../lib/fehler';
-import { gfPflicht, sitzungPflicht } from '../lib/sitzung';
+import { sitzungPflicht } from '../lib/sitzung';
+import { agentVon, pruefeProjekt, schreiberPflicht } from '../lib/agent';
 
 const entscheidungen = new Hono<AppEnv>();
 
@@ -42,11 +43,13 @@ const Neu = z.object({
  * Freigabe (siehe freigaben.ts). Stufe 2 löst die Informationspflicht aus: Nachricht an Projektleitung und GF.
  */
 entscheidungen.post('/', async (c) => {
-  const s = gfPflicht(c);
+  const s = schreiberPflicht(c);
   const d = await body(c, Neu.or(z.object({ stufe: z.literal(3) }).passthrough()));
   if (d.stufe === 3) {
     throw new ApiFehler(400, 'stufe3_ueber_freigabe', 'Stufe-3-Entscheidungen entstehen nur über eine Freigabe.');
   }
+  const agent = agentVon(c);
+  if (agent) d.von = agent.mitarbeiterId;
   const db = c.env.DB;
   await pruefeTeilnehmer(db, d.von);
   let projekt = d.projekt_slug;
@@ -55,6 +58,7 @@ entscheidungen.post('/', async (c) => {
     if (!a) throw new ApiFehler(400, 'aufgabe_unbekannt', 'Die Aufgabe existiert nicht.');
     projekt = a.projekt_slug;
   }
+  if (agent) pruefeProjekt(c, projekt);
   const id = await naechsteId(db, 'entscheidung');
   const info =
     d.stufe === 2

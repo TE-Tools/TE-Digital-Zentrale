@@ -7,6 +7,7 @@ import { body, naechsteId, pruefeTeilnehmer } from '../lib/eingabe';
 import { ApiFehler } from '../lib/fehler';
 import { erzeugePaket, pruefePaket, type PaketDaten } from '../lib/paket';
 import { gfPflicht, sitzungPflicht } from '../lib/sitzung';
+import { agentVon, pruefeEigeneAufgabe, schreiberPflicht } from '../lib/agent';
 import { AUFGABEN_STATUS, istErlaubt, OFFEN, type AufgabenStatus } from '../lib/status';
 import { inMinuten, jetzt } from '../lib/zeit';
 import { meldenAusRoute } from './benachrichtigungen';
@@ -140,7 +141,7 @@ aufgaben.get('/:id', async (c) => {
   sitzungPflicht(c);
   const id = c.req.param('id');
   const db = c.env.DB;
-  const [a, ue, abh, blockiert, cps, msgs, fgs, ents] = await db.batch([
+  const [a, ue, abh, blockiert, cps, msgs, fgs, ents, prs, sps] = await db.batch([
     db.prepare(
       `SELECT a.*, p.name AS projekt_name, p.farbe AS projekt_farbe, m.name AS zustaendig_name, m.rolle AS zustaendig_rolle,
               m.status AS zustaendig_status, m.limit_bis AS zustaendig_limit_bis
@@ -158,6 +159,8 @@ aufgaben.get('/:id', async (c) => {
     db.prepare('SELECT * FROM nachrichten WHERE aufgabe_id = ? ORDER BY zeit, id LIMIT 200').bind(id),
     db.prepare('SELECT * FROM freigaben WHERE aufgabe_id = ? ORDER BY angefragt_am DESC').bind(id),
     db.prepare('SELECT * FROM entscheidungen WHERE aufgabe_id = ? ORDER BY zeit DESC').bind(id),
+    db.prepare('SELECT repo, nummer, titel, zustand, branch, url, checks, aktualisiert_am FROM github_prs WHERE aufgabe_id = ? ORDER BY aktualisiert_am DESC').bind(id),
+    db.prepare('SELECT id, repo, pfade, inhaber_id, seit FROM repo_sperren WHERE aufgabe_id = ? AND freigegeben_am IS NULL').bind(id),
   ]);
   const aufgabe = a?.results[0];
   if (!aufgabe) throw new ApiFehler(404, 'nicht_gefunden', 'Aufgabe nicht gefunden.');
@@ -170,6 +173,8 @@ aufgaben.get('/:id', async (c) => {
     nachrichten: msgs?.results ?? [],
     freigaben: fgs?.results ?? [],
     entscheidungen: ents?.results ?? [],
+    pull_requests: prs?.results ?? [],
+    sperren: ((sps?.results ?? []) as { pfade: string }[]).map((x) => ({ ...x, pfade: JSON.parse(x.pfade) as string[] })),
   });
 });
 
@@ -223,11 +228,21 @@ aufgaben.post('/', async (c) => {
 // ------------------------------------------------------------------ Ändern (inkl. Status)
 
 aufgaben.patch('/:id', async (c) => {
-  const s = gfPflicht(c);
+  const s = schreiberPflicht(c);
   const id = c.req.param('id');
   const d = await body(c, AenderungSchema);
   const db = c.env.DB;
   const alt = await ladeAufgabe(db, id);
+  pruefeEigeneAufgabe(c, alt);
+  if (agentVon(c)) {
+    // KI-Mitarbeiter: nur Arbeitsstatus und Branch/PR melden
+    const erlaubt = new Set(['version', 'status', 'branch', 'pr_url']);
+    const fremd = Object.keys(d).filter((k) => !erlaubt.has(k));
+    if (fremd.length) throw new ApiFehler(403, 'nicht_erlaubt', `Als KI-Mitarbeiter nicht änderbar: ${fremd.join(', ')}`);
+    if (d.status && !['in_bearbeitung', 'wartend', 'blockiert', 'pruefung'].includes(d.status)) {
+      throw new ApiFehler(403, 'nicht_erlaubt', 'Diesen Status setzt nur die Geschäftsführung.');
+    }
+  }
   if (alt.version !== d.version) {
     throw new ApiFehler(409, 'veraltet', 'Die Aufgabe wurde inzwischen auf einem anderen Gerät geändert. Bitte neu laden.', {
       aktuelleVersion: alt.version,
@@ -278,6 +293,10 @@ aufgaben.patch('/:id', async (c) => {
     }
     if (alt.status === 'abgeschlossen') felder.push(['abgeschlossen_am', null]);
     felder.push(['status', neuStatus]);
+    if (neuStatus === 'abgeschlossen' || neuStatus === 'abgebrochen') {
+      // Sperren der beendeten Aufgabe automatisch lösen
+      stmts.push(db.prepare('UPDATE repo_sperren SET freigegeben_am = ? WHERE aufgabe_id = ? AND freigegeben_am IS NULL').bind(jetzt(), id));
+    }
   }
 
   if (felder.length === 0 && !d.uebergabe) throw new ApiFehler(400, 'keine_aenderung', 'Keine Änderung übermittelt.');
@@ -332,7 +351,7 @@ aufgaben.get('/:id/paket', async (c) => {
   const db = c.env.DB;
   const [a, ue, cp, ent, abh, rf] = await db.batch([
     db.prepare(
-      `SELECT a.id, a.titel, a.beschreibung, a.prioritaet, a.status, a.projekt_slug,
+      `SELECT a.id, a.titel, a.beschreibung, a.prioritaet, a.status, a.projekt_slug, a.zustaendig_id,
               p.name AS p_name, p.kurz AS p_kurz, p.stack AS p_stack, p.repo_url AS p_repo,
               m.name AS m_name, m.rolle AS m_rolle
          FROM aufgaben a JOIN projekte p ON p.slug = a.projekt_slug LEFT JOIN mitarbeiter m ON m.id = a.zustaendig_id
@@ -353,6 +372,7 @@ aufgaben.get('/:id/paket', async (c) => {
   ]);
   const z = a?.results[0] as Record<string, string | null> | undefined;
   if (!z) throw new ApiFehler(404, 'nicht_gefunden', 'Aufgabe nicht gefunden.');
+  pruefeEigeneAufgabe(c, { zustaendig_id: z.zustaendig_id ?? null, projekt_slug: z.projekt_slug! });
   const daten: PaketDaten = {
     aufgabe: { id: z.id!, titel: z.titel!, beschreibung: z.beschreibung ?? '', prioritaet: z.prioritaet!, status: z.status! },
     projekt: { name: z.p_name!, kurz: z.p_kurz ?? '', stack: z.p_stack ?? '', repo_url: z.p_repo ?? null },
@@ -370,11 +390,12 @@ aufgaben.get('/:id/paket', async (c) => {
 // ------------------------------------------------------------------ Ergebnis zurückführen
 
 aufgaben.post('/:id/ergebnis', async (c) => {
-  const s = gfPflicht(c);
+  const s = schreiberPflicht(c);
   const id = c.req.param('id');
   const { text: roh } = await body(c, z.object({ text: z.string().trim().min(1).max(100_000) }));
   const db = c.env.DB;
   const a = await ladeAufgabe(db, id);
+  pruefeEigeneAufgabe(c, a);
   if (a.status === 'abgeschlossen' || a.status === 'abgebrochen') {
     throw new ApiFehler(409, 'aufgabe_beendet', 'Die Aufgabe ist bereits beendet. Bitte erst wieder öffnen.');
   }
@@ -445,7 +466,7 @@ aufgaben.post('/:id/ergebnis', async (c) => {
 // ------------------------------------------------------------------ Checkpoint
 
 aufgaben.post('/:id/checkpoint', async (c) => {
-  const s = gfPflicht(c);
+  const s = schreiberPflicht(c);
   const id = c.req.param('id');
   const d = await body(
     c,
@@ -453,6 +474,7 @@ aufgaben.post('/:id/checkpoint', async (c) => {
   );
   const db = c.env.DB;
   const a = await ladeAufgabe(db, id);
+  pruefeEigeneAufgabe(c, a);
   await db.batch([
     db
       .prepare(`INSERT INTO checkpoints (aufgabe_id, mitarbeiter_id, zusammenfassung, naechste_schritte, grund) VALUES (?, ?, ?, ?, 'zwischenstand')`)
@@ -468,7 +490,7 @@ aufgaben.post('/:id/checkpoint', async (c) => {
 const STANDARD_PAUSE_MINUTEN = 180;
 
 aufgaben.post('/:id/limit', async (c) => {
-  const s = gfPflicht(c);
+  const s = schreiberPflicht(c);
   const id = c.req.param('id');
   const d = await body(
     c,
@@ -479,6 +501,7 @@ aufgaben.post('/:id/limit', async (c) => {
   );
   const db = c.env.DB;
   const a = await ladeAufgabe(db, id);
+  pruefeEigeneAufgabe(c, a);
   if (!a.zustaendig_id) throw new ApiFehler(409, 'kein_zustaendiger', 'Die Aufgabe hat keinen zuständigen Mitarbeiter.');
   if (a.status === 'abgeschlossen' || a.status === 'abgebrochen') throw new ApiFehler(409, 'aufgabe_beendet', 'Die Aufgabe ist bereits beendet.');
   const bis = d.bis ? new Date(d.bis).toISOString() : inMinuten(STANDARD_PAUSE_MINUTEN);

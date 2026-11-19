@@ -18,6 +18,8 @@ import {
 import { Fragment } from 'preact';
 import { useRef } from 'preact/hooks';
 import { Diktat } from '../komponenten/Diktat';
+import { GitBranch, GitPullRequest, Lock } from 'lucide-preact';
+import { branchVorschlag, CHECKS, PR_ZUSTAND } from '../lib/entwicklung';
 import { Karte, Ladebalken, Pill } from '../komponenten/Bausteine';
 import { Dialog } from '../komponenten/Dialog';
 import { toast } from '../komponenten/Toast';
@@ -194,6 +196,7 @@ export function AufgabeDetail({ id, benutzer }: { id: string; benutzer: Benutzer
           {!UEBERGABE_TEXTE.some(([k]) => daten.uebergabe?.[k]) && !a.beschreibung && <p class="textblock leer">Keine Übergabedetails hinterlegt.</p>}
         </Karte>
 
+        {(a.zustaendig_id === 'technik' || a.branch || daten.pull_requests.length > 0 || daten.sperren.length > 0) && <EntwicklungKarte daten={daten} />}
         <Zwischenstaende daten={daten} gf={gf} id={id} neuLaden={neuLaden} />
         <Abhaengigkeiten daten={daten} gf={gf} id={id} neuLaden={neuLaden} />
 
@@ -701,3 +704,71 @@ function BearbeitenDialog({ daten, mitarbeiter, schliessen, fertig }: { daten: A
   );
 }
 
+
+// ------------------------------------------------------------------ Entwicklung: Claude-Code-Übergabe, PRs, Sperren
+
+export function EntwicklungKarte({ daten }: { daten: AufgabeDetailDaten }) {
+  const a = daten.aufgabe;
+  const branch = a.branch ?? branchVorschlag(a.id, a.titel);
+  const auftrag =
+    `Bearbeite die Aufgabe ${a.id} aus der TE-Digital Zentrale. Lies sie mit dem MCP-Werkzeug aufgabe_lesen, ` +
+    `starte sie mit aufgabe_starten, arbeite im Branch ${branch} (branch_melden), sperre konfliktträchtige Dateien mit sperre_setzen, ` +
+    `speichere Zwischenstände und melde am Ende mit ergebnis_melden. Kein Merge in main ohne Freigabe.`;
+  const kopieren = async (t: string) => {
+    try {
+      await navigator.clipboard.writeText(t);
+      toast('Kopiert');
+    } catch {
+      toast('Kopieren nicht erlaubt');
+    }
+  };
+  const beendet = a.status === 'abgeschlossen' || a.status === 'abgebrochen';
+  return (
+    <Karte titel="Entwicklung" kicker="Claude Code · GitHub">
+      <div style={{ display: 'grid', gap: 12 }}>
+        <dl class="daten" style={{ gridTemplateColumns: '90px 1fr' }}>
+          <dt>Branch</dt>
+          <dd>
+            <code style={{ wordBreak: 'break-all' }}>{branch}</code> {!a.branch && <span class="zeitstempel">(Vorschlag)</span>}
+          </dd>
+          {a.pr_url && (
+            <>
+              <dt>PR</dt>
+              <dd><a href={a.pr_url} target="_blank" rel="noopener noreferrer">{a.pr_url.replace('https://github.com/', '')}</a></dd>
+            </>
+          )}
+        </dl>
+        {daten.pull_requests.map((p) => (
+          <a key={`${p.repo}#${p.nummer}`} class="hinweis" href={p.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <GitPullRequest size={16} aria-hidden="true" />
+            <p style={{ flex: 1, minWidth: 0 }}>
+              <b>{p.repo.split('/')[1]} #{p.nummer}</b> {p.titel}
+            </p>
+            <Pill ton={PR_ZUSTAND[p.zustand].ton}>{PR_ZUSTAND[p.zustand].text}</Pill>
+            {(p.zustand === 'offen' || p.zustand === 'entwurf') && <Pill ton={CHECKS[p.checks].ton}>{CHECKS[p.checks].text}</Pill>}
+          </a>
+        ))}
+        {daten.sperren.map((s) => (
+          <div key={s.id} class="zeitstempel reihe" style={{ gap: 5 }}>
+            <Lock size={13} aria-hidden="true" /> {s.repo}: <code>{s.pfade.join(', ')}</code>
+          </div>
+        ))}
+        {!beendet && a.zustaendig_id === 'technik' && (
+          <details class="aufklapp">
+            <summary>Auftrag an Claude Code übergeben</summary>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <p class="zeitstempel" style={{ margin: 0 }}>
+                In Claude Code (lokal im Projektordner oder als Cloud-Sitzung im Repository) diesen Auftrag einfügen. Voraussetzung: ein KI-Zugang unter Einstellungen.
+              </p>
+              <pre class="paket" style={{ maxHeight: 160 }}>{auftrag}</pre>
+              <div class="reihe">
+                <button class="btn btn-primary btn-sm" onClick={() => kopieren(auftrag)}><ClipboardCopy size={15} aria-hidden="true" /> Auftrag kopieren</button>
+                <button class="btn btn-ghost btn-sm" onClick={() => kopieren(branch)}><GitBranch size={15} aria-hidden="true" /> Branch kopieren</button>
+              </div>
+            </div>
+          </details>
+        )}
+      </div>
+    </Karte>
+  );
+}

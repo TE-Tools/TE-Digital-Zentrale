@@ -5,6 +5,7 @@ import { auditStatement } from '../lib/audit';
 import { body, pruefeTeilnehmer } from '../lib/eingabe';
 import { ApiFehler } from '../lib/fehler';
 import { gfPflicht, sitzungPflicht } from '../lib/sitzung';
+import { agentVon, pruefeProjekt, schreiberPflicht } from '../lib/agent';
 import { jetzt } from '../lib/zeit';
 import { meldenAusRoute } from './benachrichtigungen';
 
@@ -56,8 +57,10 @@ const Neu = z.object({
 });
 
 nachrichten.post('/', async (c) => {
-  const s = gfPflicht(c);
+  const s = schreiberPflicht(c);
   const d = await body(c, Neu);
+  const agent = agentVon(c);
+  if (agent) d.von = agent.mitarbeiterId; // KI-Mitarbeiter schreiben immer in eigenem Namen
   const db = c.env.DB;
   await pruefeTeilnehmer(db, d.von, d.an);
   let projekt = d.projekt_slug;
@@ -65,7 +68,9 @@ nachrichten.post('/', async (c) => {
     const a = await db.prepare('SELECT projekt_slug FROM aufgaben WHERE id = ?').bind(d.aufgabe_id).first<{ projekt_slug: string }>();
     if (!a) throw new ApiFehler(400, 'aufgabe_unbekannt', 'Die Aufgabe existiert nicht.');
     projekt = a.projekt_slug;
+    pruefeProjekt(c, projekt);
   } else if (projekt) {
+    pruefeProjekt(c, projekt);
     const p = await db.prepare('SELECT 1 FROM projekte WHERE slug = ?').bind(projekt).first();
     if (!p) throw new ApiFehler(400, 'projekt_unbekannt', 'Das Projekt existiert nicht.');
   }

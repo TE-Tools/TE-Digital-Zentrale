@@ -2,7 +2,7 @@
 
 Zentrale Unternehmenssteuerung von TE-Digital als PWA: KI-Mitarbeiter, Projekte, Aufgaben, Freigaben und Unternehmenswissen. Grundlage sind das Pflichtenheft v1.0 und der freigegebene Plan in [docs/Bestandsaufnahme-und-Implementierungsplan.md](docs/Bestandsaufnahme-und-Implementierungsplan.md).
 
-**Stand:** Phase 4 (Benachrichtigungen & mobile Bedienung) – lokal lauffähig, noch nicht in Cloudflare angelegt. Repository: https://github.com/TE-Tools/TE-Digital-Zentrale
+**Stand:** Phase 5 (Entwicklungsintegration) – lokal lauffähig, noch nicht in Cloudflare angelegt. Repository: https://github.com/TE-Tools/TE-Digital-Zentrale
 
 ## Aufbau
 
@@ -63,6 +63,53 @@ Alle Nachrichten (Übergaben, Ergebnisberichte, Rückfragen, Warnungen …) lieg
   - „Vorlesen“ des Unternehmensstatus über die Gerätestimme.
 - **Offline:** Die App-Hülle ist vorgehalten. Das Dashboard zeigt den letzten Stand mit Uhrzeit, dazu einen Offline-Hinweis.
 
+## Entwicklungsintegration (Phase 5)
+
+### Claude Code über MCP
+
+Der Worker stellt unter `/mcp` einen MCP-Server bereit (Streamable HTTP, zustandslos). Darüber arbeitet Claude Code mit Ihrem Claude-Abo direkt mit der Zentrale, ohne kostenpflichtige API.
+
+1. **Zugang anlegen:** *Einstellungen → KI-Zugänge → Zugang erstellen*. Das ist eine Stufe-3-Aktion mit Passkey. Optional beschränken Sie den Zugang auf einzelne Projekte. Das Token wird nur einmal angezeigt. Gespeichert wird nur sein Hash, und es lässt sich jederzeit widerrufen.
+2. **Lokal einrichten:**
+   ```powershell
+   claude mcp add --transport http --scope user te-zentrale https://zentrale.te-alltagshelfer.org/mcp --header "Authorization: Bearer <TOKEN>"
+   ```
+3. **Claude Code in der Cloud:** In der Cloud-Umgebung die Variable `TE_ZENTRALE_TOKEN` setzen und im Projekt-Repository eine `.mcp.json` einchecken. Sie enthält kein Geheimnis:
+   ```json
+   { "mcpServers": { "te-zentrale": { "type": "http", "url": "https://zentrale.te-alltagshelfer.org/mcp", "headers": { "Authorization": "Bearer ${TE_ZENTRALE_TOKEN}" } } } }
+   ```
+4. **Auftrag übergeben:** In der Aufgabe unter *Entwicklung → Auftrag an Claude Code übergeben* den Text kopieren und in Claude Code einfügen.
+
+**Werkzeuge:**
+- Lesen: `meine_aufgaben`, `aufgabe_lesen`, `projekt_kontext`, `nachrichten_lesen`
+- Aufgabe bearbeiten: `aufgabe_starten`, `status_melden`, `zwischenstand_speichern`, `ergebnis_melden`, `limit_melden`, `branch_melden`
+- Sperren: `sperre_setzen`, `sperre_freigeben`
+- Kommunikation und Entscheidungen: `nachricht_senden`, `freigabe_beantragen`, `entscheidung_dokumentieren`
+
+**Grenzen:** KI-Zugänge arbeiten nur an eigenen Aufgaben in freigegebenen Projekten. Sie können keine Freigaben erteilen, keine Aufgaben abschließen, keine Rechte ändern und keine Stufe-3-Entscheidungen treffen. Das sichern zwei Schichten ab: eine Routen-Whitelist und die Prüfungen in jeder Route. Im Audit-Protokoll stehen ihre Aktionen als `mitarbeiter`. Ergebnisse von KI-Mitarbeitern lösen Push-Meldungen aus.
+
+**Noch nicht enthalten:** Claude.ai (Web/App) als Konnektor. Er verlangt OAuth, das folgt als eigener Schritt. ChatGPT, Gemini und Grok können MCP mit kostenlosen Zugängen nicht nutzen und arbeiten weiter mit Übergabepaketen.
+
+### GitHub-App (von der Geschäftsführung selbst eingerichtet)
+
+*Einstellungen → GitHub-Verbindung → Verbindung einrichten (Passkey)* durchläuft drei Schritte:
+
+1. Die Zentrale übergibt ein App-Manifest an github.com. Auf GitHub bestätigen Sie nur noch den Namen.
+2. GitHub leitet zurück. Privater App-Schlüssel und Webhook-Geheimnis werden mit AES-GCM verschlüsselt in D1 gespeichert. Den Schlüssel dazu gibt es nur als Secret `ZENTRALE_SCHLUESSEL`.
+3. Sie installieren die App in TE-Tools und **wählen auf GitHub selbst die Repositories aus**.
+
+**Rechte:** Metadaten, Pull Requests und Checks nur lesen, Issues lesen und schreiben. **Kein Schreibrecht auf Code.** Zusammengeführt wird nur auf GitHub, nach Prüfung und Freigabe.
+
+**Daten:** Webhooks (`pull_request`, `check_suite`, `push`) und ein stündlicher Abgleich im Cron. Im Free-Tarif ist der Abgleich auf höchstens 45 GitHub-Aufrufe begrenzt.
+
+**Voraussetzung:** Die Zentrale muss öffentlich per HTTPS erreichbar sein. GitHub kann weder `localhost` zurückrufen noch Webhooks dorthin schicken. Die Einrichtung funktioniert deshalb erst nach der Produktivsetzung.
+
+### Git-Konfliktschutz (Pflichtenheft 7.1)
+
+- **Branches:** Jede Entwicklungsaufgabe bekommt einen eigenen Branch `aufgabe/td-0007-kurztitel`. PRs werden über den Branch-Namen automatisch ihrer Aufgabe zugeordnet.
+- **Sperren:** Sperren gelten exklusiv für Pfade oder Muster in einem Repository. Eine überlappende Sperre wird abgelehnt, und nichts wird automatisch übernommen. Endet eine Aufgabe (abgeschlossen oder abgebrochen), wird ihre Sperre frei.
+- **Konflikterkennung** unter *Entwicklung*: Sie meldet offene PRs, die dieselben Dateien ändern, und PRs, die Dateien einer fremden Sperre berühren.
+
 ## Sicherheit (Phase 2)
 
 - Anmeldung nur per **Passkey** (WebAuthn, Benutzerverifikation Pflicht). Dazu 8 einmalige Wiederherstellungscodes, gespeichert als SHA-256.
@@ -78,6 +125,6 @@ Alle Nachrichten (Übergaben, Ergebnisberichte, Rückfragen, Warnungen …) lieg
 
 1. `npx wrangler d1 create te-zentrale-db --jurisdiction eu` und die ID in `wrangler.jsonc` → `env.produktion` eintragen.
 2. `npx wrangler d1 migrations apply te-zentrale-db --remote --env produktion`
-3. `npx wrangler secret put EINRICHTUNGSCODE --env produktion`
+3. `npx wrangler secret put EINRICHTUNGSCODE --env produktion` sowie `npx wrangler secret put ZENTRALE_SCHLUESSEL --env produktion` (32 zufällige Byte, base64url – Befehl in `apps/worker/.dev.vars.example`)
 4. `npm run build` und danach `npx wrangler deploy --env produktion` im Ordner `apps/worker`. Die Custom Domain `zentrale.te-alltagshelfer.org` wird dabei angelegt.
 5. Die Zentrale öffnen, mit dem Einrichtungscode den Passkey anlegen und die Wiederherstellungscodes sichern.

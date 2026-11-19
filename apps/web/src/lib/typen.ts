@@ -201,6 +201,8 @@ export interface AufgabeDetailDaten {
   nachrichten: Nachricht[];
   freigaben: FreigabeVoll[];
   entscheidungen: Entscheidung[];
+  pull_requests: import('./entwicklung').PullRequest[];
+  sperren: import('./entwicklung').Sperre[];
 }
 
 export interface Paket {
