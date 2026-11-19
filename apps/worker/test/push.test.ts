@@ -186,3 +186,21 @@ describe('Echtzeit', () => {
     ws.close();
   });
 });
+
+describe('Aufräumen (Löschkonzept)', () => {
+  it('löscht abgelaufene Sitzungen und alte gelesene Meldungen, behält das Audit', async () => {
+    const { aufraeumen } = await import('../src/cron');
+    const cookie = await devAnmelden();
+    const b = await env.DB.prepare(`SELECT id FROM benutzer WHERE rolle = 'gf' LIMIT 1`).first<{ id: string }>();
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO sitzungen (token_hash, benutzer_id, ablauf_am) VALUES ('alt-hash', ?, '2020-01-01T00:00:00.000Z')`).bind(b!.id),
+      env.DB.prepare(`INSERT INTO benachrichtigungen (benutzer_id, kategorie, titel, erstellt_am, gelesen_am) VALUES (?, 'wichtig', 'uralt', '2020-01-01T00:00:00.000Z', '2020-01-02T00:00:00.000Z')`).bind(b!.id),
+    ]);
+    const auditVorher = await env.DB.prepare('SELECT COUNT(*) AS n FROM aktivitaeten').first<{ n: number }>();
+    await aufraeumen(env);
+    expect(await env.DB.prepare(`SELECT 1 FROM sitzungen WHERE token_hash = 'alt-hash'`).first()).toBeNull();
+    expect(await env.DB.prepare(`SELECT 1 FROM benachrichtigungen WHERE titel = 'uralt'`).first()).toBeNull();
+    expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM aktivitaeten').first<{ n: number }>())!.n).toBe(auditVorher!.n);
+    expect((await anfrage('/api/dashboard', { cookie })).status).toBe(200); // aktuelle Sitzung bleibt
+  });
+});

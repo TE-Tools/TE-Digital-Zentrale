@@ -13,6 +13,7 @@ import wissen from './routes/wissen';
 import berichte from './routes/berichte';
 import kosten from './routes/kosten';
 import { agentLaden } from './lib/agent';
+import { anschluss, drosseln } from './lib/drossel';
 import { mcpBehandeln } from './mcp';
 import aufgaben from './routes/aufgaben';
 import auth from './routes/auth';
@@ -78,6 +79,20 @@ const AGENT_WEGE: [string, RegExp][] = [
   ['POST', /^\/api\/wissen$/],
   ['PATCH', /^\/api\/wissen\/\d+$/],
 ];
+/**
+ * Drosselung: Anmeldewege je Anschluss (gegen Durchprobieren von Codes), schreibende Anfragen je Benutzer.
+ * Interne Aufrufe des MCP-Servers sind bereits über RL_MCP gedrosselt.
+ */
+app.use('/api/*', async (c, next) => {
+  const m = c.req.method;
+  if (m === 'POST' && c.req.path.startsWith('/api/auth/') && !/\/(dev-anmeldung|abmelden)$/.test(c.req.path)) {
+    await drosseln(c.env, 'RL_ANMELDUNG', anschluss(c.req.raw));
+  } else if (!['GET', 'HEAD', 'OPTIONS'].includes(m) && !c.get('agent')) {
+    await drosseln(c.env, 'RL_SCHREIBEN', c.get('sitzung')?.benutzer.id ?? anschluss(c.req.raw));
+  }
+  await next();
+});
+
 app.use('/api/*', async (c, next) => {
   if (c.get('agent') && !AGENT_WEGE.some(([m, re]) => m === c.req.method && re.test(c.req.path))) {
     throw new ApiFehler(403, 'agent_nicht_erlaubt', 'Für KI-Mitarbeiter nicht freigegeben.');

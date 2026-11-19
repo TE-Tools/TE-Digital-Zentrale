@@ -38,8 +38,23 @@ export function App() {
       setzeDevLogin(st.devLogin);
       setStatus(st);
       setFehler(null);
+      try {
+        // Für die Offline-Anzeige: nur Name und Rolle, keine Geheimnisse
+        if (st.angemeldet) localStorage.setItem('te-cache:auth', JSON.stringify({ ...st, devLogin: false }));
+        else localStorage.removeItem('te-cache:auth');
+      } catch {
+        /* Speicher gesperrt */
+      }
     } catch (e) {
-      setFehler(e instanceof ApiFehler ? e.message : 'Zentrale nicht erreichbar.');
+      // Offline: mit dem zuletzt bekannten Anmeldestand weiterarbeiten (nur Anzeige, Änderungen scheitern sauber)
+      let gemerkt: AuthStatus | null = null;
+      try {
+        gemerkt = e instanceof ApiFehler && e.code === 'offline' ? (JSON.parse(localStorage.getItem('te-cache:auth') ?? 'null') as AuthStatus | null) : null;
+      } catch {
+        gemerkt = null;
+      }
+      if (gemerkt) setStatus(gemerkt);
+      else setFehler(e instanceof ApiFehler ? e.message : 'Zentrale nicht erreichbar.');
     }
   }, []);
 

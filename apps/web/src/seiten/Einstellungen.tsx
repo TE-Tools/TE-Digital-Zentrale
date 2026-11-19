@@ -44,6 +44,12 @@ export function Einstellungen({ benutzer, abgemeldet }: { benutzer: Benutzer; ab
 
   async function abmelden() {
     await api.post('/auth/abmelden').catch(() => undefined);
+    try {
+      localStorage.removeItem('te-cache:auth');
+      localStorage.removeItem('te-cache:dashboard');
+    } catch {
+      /* ignorieren */
+    }
     abgemeldet();
   }
 

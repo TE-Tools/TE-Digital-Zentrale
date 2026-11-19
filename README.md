@@ -2,7 +2,7 @@
 
 Zentrale Unternehmenssteuerung von TE-Digital als PWA: KI-Mitarbeiter, Projekte, Aufgaben, Freigaben und Unternehmenswissen. Grundlage sind das Pflichtenheft v1.0 und der freigegebene Plan in [docs/Bestandsaufnahme-und-Implementierungsplan.md](docs/Bestandsaufnahme-und-Implementierungsplan.md).
 
-**Stand:** Phase 6 (Wissen & Berichte) – lokal lauffähig, noch nicht in Cloudflare angelegt. Repository: https://github.com/TE-Tools/TE-Digital-Zentrale
+**Stand:** Phase 7 (Qualitätssicherung) abgeschlossen – bereit zur Produktivsetzung nach Freigabe der Geschäftsführung. Abnahme: [docs/Abnahme.md](docs/Abnahme.md) · Betrieb: [docs/Betrieb.md](docs/Betrieb.md) · Datenschutz: [docs/datenschutz/](docs/datenschutz/) · Repository: https://github.com/TE-Tools/TE-Digital-Zentrale
 
 ## Aufbau
 
@@ -32,7 +32,9 @@ Für schnelle Oberflächenarbeit zusätzlich `npm run dev:web` (Vite auf :5173, 
 ## Prüfen
 
 ```powershell
-npm run pruefen    # Typprüfung, Tests (Worker + Web), Produktions-Build
+npm run pruefen    # Typprüfung, Tests (Worker + Web), Produktions-Build, Performance-Budget
+npm run e2e        # Ende-zu-Ende-Tests Desktop + Handy (Playwright, eigene Test-Datenbank)
+npm run wiederherstellung:testen -- <sicherung.sql>   # Sicherung probeweise einspielen und prüfen
 ```
 
 ## Arbeitsablauf (Phase 3)

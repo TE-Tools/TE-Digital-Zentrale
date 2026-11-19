@@ -23,6 +23,10 @@ export interface Env {
   /** Kostenwächter: Cloudflare-Konto-ID und API-Token nur mit „Account Analytics: Lesen“ */
   CF_ACCOUNT_ID?: string;
   CF_ANALYTICS_TOKEN?: string;
+  /** Drosselung (Rate Limiting Binding) */
+  RL_ANMELDUNG?: RateLimit;
+  RL_MCP?: RateLimit;
+  RL_SCHREIBEN?: RateLimit;
 }
 
 export interface Benutzer {

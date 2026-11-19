@@ -102,8 +102,9 @@ export async function cronAusfuehren(env: Env, jetztDatum: Date = new Date()): P
     }
   }
 
-  // 4 – stündlich: Kostenwächter, dann GitHub-Abgleich (im Sparmodus ausgesetzt)
+  // 4 – stündlich: Aufräumen (Löschkonzept, docs/datenschutz/Loeschkonzept.md), Kostenwächter, GitHub-Abgleich
   if (zeit.minute < 15) {
+    await aufraeumen(env, jetztDatum).catch((e) => console.error('Aufräumen', e));
     if (kostenEingerichtet(env)) {
       try {
         const messungen = await messen(env, jetztDatum);
@@ -163,4 +164,20 @@ export async function tagesbericht(env: Env, d: Date): Promise<{ titel: string; 
     z?.wartend ? `${z.wartend} wartend` : '',
   ].filter(Boolean);
   return { titel: 'Tagesbericht TE-Digital', text: teile.join(' · ') };
+}
+
+/**
+ * Löschfristen (Datensparsamkeit, Art. 5 (1) e DSGVO). Audit-Protokoll, Entscheidungen und Freigaben
+ * bleiben bewusst erhalten (Nachweispflicht, Pflichtenheft 3).
+ */
+export async function aufraeumen(env: Env, d: Date = new Date()): Promise<void> {
+  const tage = (n: number) => new Date(d.getTime() - n * 86_400_000).toISOString();
+  const jetztIso = d.toISOString();
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM sitzungen WHERE ablauf_am < ?').bind(jetztIso),
+    env.DB.prepare('DELETE FROM auth_challenges WHERE ablauf_am < ?').bind(jetztIso),
+    env.DB.prepare(`DELETE FROM benachrichtigungen WHERE erstellt_am < ? AND (gelesen_am IS NOT NULL OR erstellt_am < ?)`).bind(tage(90), tage(180)),
+    env.DB.prepare(`DELETE FROM kosten_messwerte WHERE datum < ?`).bind(tage(90).slice(0, 10)),
+    env.DB.prepare(`UPDATE github_verbindung SET state = NULL, state_ablauf = NULL WHERE state_ablauf < ?`).bind(jetztIso),
+  ]);
 }

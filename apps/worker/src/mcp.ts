@@ -15,6 +15,7 @@
 import type { Hono } from 'hono';
 import type { AgentKontext, AppEnv, Env } from './env';
 import { alsAgent } from './lib/agent';
+import { anschluss, gedrosselt } from './lib/drossel';
 import { sha256Hex } from './lib/krypto';
 import { branchVorschlag } from './lib/pfade';
 import { jetzt } from './lib/zeit';
@@ -296,6 +297,12 @@ export async function mcpBehandeln(
 
   if (request.method !== 'POST') {
     return new Response(null, { status: 405, headers: { ...kopf, Allow: 'POST' } });
+  }
+  if (await gedrosselt(env, 'RL_MCP', anschluss(request))) {
+    return Response.json(
+      { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'Zu viele Anfragen – bitte kurz warten.' } },
+      { status: 429, headers: { ...kopf, 'Retry-After': '60' } },
+    );
   }
   const agent = await agentAusToken(env, request.headers.get('authorization') ?? undefined);
   if (!agent) {

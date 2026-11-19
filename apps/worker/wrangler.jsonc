@@ -37,6 +37,13 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ZentraleLive"] }],
 
+  // Drosselung gegen Durchprobieren und Missbrauch (Rate-Limiting-Binding, auch im Free-Tarif)
+  "ratelimits": [
+    { "name": "RL_ANMELDUNG", "namespace_id": "2611191", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_MCP", "namespace_id": "2611192", "simple": { "limit": 120, "period": 60 } },
+    { "name": "RL_SCHREIBEN", "namespace_id": "2611193", "simple": { "limit": 120, "period": 60 } }
+  ],
+
   // Alle 15 Minuten: abgelaufene Limit-Pausen, zurückgestellte Meldungen, Tagesbericht
   "triggers": { "crons": ["*/15 * * * *"] },
 
@@ -55,6 +62,11 @@
         "bindings": [{ "name": "LIVE", "class_name": "ZentraleLive" }]
       },
       "triggers": { "crons": ["*/15 * * * *"] },
+      "ratelimits": [
+        { "name": "RL_ANMELDUNG", "namespace_id": "2611191", "simple": { "limit": 10, "period": 60 } },
+        { "name": "RL_MCP", "namespace_id": "2611192", "simple": { "limit": 120, "period": 60 } },
+        { "name": "RL_SCHREIBEN", "namespace_id": "2611193", "simple": { "limit": 120, "period": 60 } }
+      ],
       "d1_databases": [
         {
           "binding": "DB",
