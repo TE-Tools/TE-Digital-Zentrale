@@ -2,9 +2,13 @@ import { Hono } from 'hono';
 import type { AppEnv } from './env';
 import { ApiFehler } from './lib/fehler';
 import { sitzungLaden } from './lib/sitzung';
+import aufgaben from './routes/aufgaben';
 import auth from './routes/auth';
 import dashboard from './routes/dashboard';
+import entscheidungen from './routes/entscheidungen';
+import freigaben from './routes/freigaben';
 import mitarbeiter from './routes/mitarbeiter';
+import nachrichten from './routes/nachrichten';
 import projekte from './routes/projekte';
 
 export const app = new Hono<AppEnv>();
@@ -49,6 +53,10 @@ app.route('/api/auth', auth);
 app.route('/api/dashboard', dashboard);
 app.route('/api/projekte', projekte);
 app.route('/api/mitarbeiter', mitarbeiter);
+app.route('/api/aufgaben', aufgaben);
+app.route('/api/nachrichten', nachrichten);
+app.route('/api/entscheidungen', entscheidungen);
+app.route('/api/freigaben', freigaben);
 
 app.all('/api/*', () => {
   throw new ApiFehler(404, 'nicht_gefunden', 'Unbekannter Endpunkt.');

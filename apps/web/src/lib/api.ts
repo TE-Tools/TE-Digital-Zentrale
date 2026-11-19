@@ -45,4 +45,5 @@ export const api = {
   get: <T>(pfad: string) => anfrage<T>('GET', pfad),
   post: <T>(pfad: string, body: unknown = {}) => anfrage<T>('POST', pfad, body),
   patch: <T>(pfad: string, body: unknown) => anfrage<T>('PATCH', pfad, body),
+  delete: <T>(pfad: string) => anfrage<T>('DELETE', pfad),
 };

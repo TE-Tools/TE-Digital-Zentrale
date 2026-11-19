@@ -4,7 +4,8 @@ import { Karte, Kennzahl, Ladebalken, Leer, Pill } from '../komponenten/Baustein
 import { useDaten } from '../lib/daten';
 import { aktivitaetText, datum, relativeZeit } from '../lib/format';
 import { useKopf } from '../lib/kopf';
-import type { Aktivitaet, Benutzer, Projekt } from '../lib/typen';
+import type { Aktivitaet, AufgabeKurz, Benutzer, Projekt } from '../lib/typen';
+import { AufgabenListe } from '../komponenten/AufgabenListe';
 import { ProjektFormular } from './ProjektFormular';
 
 export function ProjektDetail({ slug, benutzer, geaendert }: { slug: string; benutzer: Benutzer; geaendert: () => void }) {
@@ -104,12 +105,31 @@ export function ProjektDetail({ slug, benutzer, geaendert }: { slug: string; ben
             </Karte>
           </div>
           <div class="sp-12">
-            <Karte titel="Aufgaben, Entscheidungen, Releases, Risiken" kicker="Projektbereich">
-              <Leer Icon={ListChecks} titel="Folgt in Phase 3" text="Aufgaben, Entscheidungen, Veröffentlichungen und Risiken dieses Projekts erscheinen hier, sobald die Agentenverwaltung steht." />
-            </Karte>
+            <ProjektAufgaben slug={p.slug} gf={benutzer.rolle === 'gf'} />
           </div>
         </>
       )}
     </div>
+  );
+}
+
+function ProjektAufgaben({ slug, gf }: { slug: string; gf: boolean }) {
+  const [gruppe, setGruppe] = useState<'offen' | 'erledigt'>('offen');
+  const r = useDaten<{ aufgaben: AufgabeKurz[] }>(`/aufgaben?projekt=${slug}&gruppe=${gruppe}`);
+  return (
+    <Karte titel="Aufgaben" kicker="Projektbereich" mehr={{ text: 'In der Aufgabenliste', href: `/aufgaben?projekt=${slug}` }}>
+      <div class="reihe" style={{ marginBottom: 10 }}>
+        <div class="reiter" role="group" aria-label="Filter">
+          <button aria-pressed={gruppe === 'offen'} onClick={() => setGruppe('offen')}>Offen</button>
+          <button aria-pressed={gruppe === 'erledigt'} onClick={() => setGruppe('erledigt')}>Erledigt</button>
+        </div>
+        {gf && <a class="btn btn-gold btn-sm" style={{ marginLeft: 'auto' }} href={`/aufgaben/neu?projekt=${slug}`}>+ Auftrag für dieses Projekt</a>}
+      </div>
+      {!r.daten ? <Ladebalken /> : r.daten.aufgaben.length === 0 ? (
+        <Leer Icon={ListChecks} titel={gruppe === 'offen' ? 'Keine offenen Aufgaben' : 'Noch nichts erledigt'} />
+      ) : (
+        <AufgabenListe aufgaben={r.daten.aufgaben} ohneProjekt />
+      )}
+    </Karte>
   );
 }

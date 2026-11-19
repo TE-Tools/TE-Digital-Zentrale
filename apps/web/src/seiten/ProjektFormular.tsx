@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { Save } from 'lucide-preact';
 import { ApiFehler, api } from '../lib/api';
+import { Auswahl } from '../komponenten/Auswahl';
 import type { Projekt } from '../lib/typen';
 
 const FARBEN = ['#C8912A', '#047857', '#1B4D3E', '#6B1F2A', '#5A3CE0', '#9B1C1F', '#1D4ED8', '#14161A'];
@@ -73,12 +74,12 @@ export function ProjektFormular(props: {
       ) : (
         <label class="feld">
           <span>Status</span>
-          <select class="eingabe" name="status" defaultValue={p.status}>
+          <Auswahl class="eingabe" name="status" defaultValue={p.status}>
             <option value="aktiv">aktiv</option>
             <option value="geplant">geplant</option>
             <option value="pausiert">pausiert</option>
             <option value="archiviert">archiviert</option>
-          </select>
+          </Auswahl>
         </label>
       )}
       <label class="feld breit">

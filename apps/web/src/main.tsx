@@ -6,6 +6,7 @@ import './styles/basis.css';
 import './styles/rahmen.css';
 import './styles/bausteine.css';
 import './styles/anmeldung.css';
+import './styles/arbeit.css';
 import { App } from './App';
 
 render(<App />, document.getElementById('app')!);

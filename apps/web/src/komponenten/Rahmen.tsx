@@ -16,6 +16,7 @@ export function Rahmen(props: {
   kicker?: string;
   aktionen?: ComponentChildren;
   offeneFreigaben?: number;
+  ungelesen?: number;
   /** Erhöhen, um die Projektliste der Seitenleiste neu zu laden */
   projekteVersion?: number;
   children: ComponentChildren;
@@ -48,6 +49,8 @@ export function Rahmen(props: {
               {b.text}
               {b.pfad === '/freigaben' && (props.offeneFreigaben ?? 0) > 0 ? (
                 <span class="badge">{props.offeneFreigaben}</span>
+              ) : b.pfad === '/kommunikation' && (props.ungelesen ?? 0) > 0 ? (
+                <span class="badge" title="Ungelesene Nachrichten an die Geschäftsführung">{props.ungelesen}</span>
               ) : b.phase ? (
                 <span class="bald" title={`Folgt in Phase ${b.phase}`}>P{b.phase}</span>
               ) : null}
@@ -91,7 +94,7 @@ export function Rahmen(props: {
           <LayoutDashboard size={21} aria-hidden="true" />
           Übersicht
         </a>
-        <a class="unten-link" href="/aufgaben" aria-current={aktuell('/aufgaben')}>
+        <a class="unten-link" href="/aufgaben" aria-current={props.pfad.startsWith('/aufgaben') && props.pfad !== '/aufgaben/neu' ? 'page' : undefined}>
           <ListChecks size={21} aria-hidden="true" />
           Aufgaben
         </a>
@@ -108,6 +111,7 @@ export function Rahmen(props: {
         <button class="unten-link" type="button" onClick={() => setMehrOffen(true)} aria-expanded={mehrOffen}>
           <Menu size={21} aria-hidden="true" />
           Mehr
+          {(props.ungelesen ?? 0) > 0 && <span class="badge">{props.ungelesen}</span>}
         </button>
       </nav>
 

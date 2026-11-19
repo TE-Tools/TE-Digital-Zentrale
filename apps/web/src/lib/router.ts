@@ -4,7 +4,7 @@ import { useEffect, useState } from 'preact/hooks';
 const hoerer = new Set<() => void>();
 
 export function navigiere(pfad: string, ersetzen = false): void {
-  if (pfad === location.pathname) return;
+  if (pfad === location.pathname + location.search) return;
   if (ersetzen) history.replaceState(null, '', pfad);
   else history.pushState(null, '', pfad);
   window.scrollTo(0, 0);
@@ -25,14 +25,15 @@ if (typeof window !== 'undefined') {
   });
 }
 
+/** Liefert den Pfad; rendert auch neu, wenn sich nur die Query (?gruppe=…) ändert. */
 export function usePfad(): string {
-  const [pfad, setPfad] = useState(location.pathname);
+  const [ort, setOrt] = useState(location.pathname + location.search);
   useEffect(() => {
-    const h = () => setPfad(location.pathname);
+    const h = () => setOrt(location.pathname + location.search);
     hoerer.add(h);
     return () => void hoerer.delete(h);
   }, []);
-  return pfad;
+  return ort.split('?')[0]!;
 }
 
 /** Prüft „/projekte/:slug“-Muster und liefert die Parameter. */

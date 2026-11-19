@@ -2,14 +2,14 @@
 
 Zentrale Unternehmenssteuerung von TE-Digital als PWA: KI-Mitarbeiter, Projekte, Aufgaben, Freigaben und Unternehmenswissen. Grundlage sind das Pflichtenheft v1.0 und der freigegebene Plan in [docs/Bestandsaufnahme-und-Implementierungsplan.md](docs/Bestandsaufnahme-und-Implementierungsplan.md).
 
-**Stand:** Phase 2 (Grundsystem) – lokal lauffähig, noch nicht in Cloudflare angelegt.
+**Stand:** Phase 3 (Agentenverwaltung) – lokal lauffähig, noch nicht in Cloudflare angelegt.
 
 ## Aufbau
 
 | Pfad | Inhalt |
 |---|---|
 | `apps/worker` | Cloudflare Worker (Hono, TypeScript): API, Passkey-Anmeldung, D1-Migrationen, Tests (laufen in workerd) |
-| `apps/web` | PWA (Preact, Vite, `vite-plugin-pwa`): Dashboard, Projekte, Mitarbeiter, Einstellungen |
+| `apps/web` | PWA (Preact, Vite, `vite-plugin-pwa`): Dashboard, Aufgaben, Kommunikation, Freigaben, Projekte, Mitarbeiter, Einstellungen |
 | `marke/` | TE-Digital-Logo als SVG (Kachel, maskable, monochrom) – Quelle für alle Icons |
 | `scripts/icons.mjs` | Erzeugt App-Icons aus `marke/` (`npm run icons`) |
 | `docs/` | Bestandsaufnahme, Plan, Entscheidungen |
@@ -34,6 +34,17 @@ Für schnelle Oberflächenarbeit zusätzlich `npm run dev:web` (Vite auf :5173, 
 ```powershell
 npm run pruefen    # Typprüfung, Tests (Worker + Web), Produktions-Build
 ```
+
+## Arbeitsablauf (Phase 3)
+
+1. **Auftrag erteilen** (`/aufgaben/neu`): Titel, Projekt, Zuständigkeit, Priorität und das Übergabepaket nach Pflichtenheft 6.3 (Ziel, Ausgangslage, Dateien, Ergebnis, Einschränkungen, Akzeptanzkriterien, Freigaben). Abhängigkeiten sind optional. Laufende Nummern: TD-0001, FG-0001, EN-0001.
+2. **Übergabepaket kopieren oder teilen** und im KI-Tool einfügen: ChatGPT, Gemini, Grok kostenlos im Web, Claude per Abo. Das Paket enthält Rolle, Stufenregel, Kontext und ein festes Antwortformat. Vor dem Kopieren warnt es bei E-Mail-Adressen, Telefonnummern, Zugangsdaten und Überlänge.
+3. **Antwort zurückführen:** Die Antwort einfügen. Die Abschnitte ERGEBNIS, OFFENE FRAGEN, FREIGABEANTRÄGE und ZWISCHENSTAND werden erkannt. Daraus entstehen ein Ergebnis (Status *Prüfung*), ein Checkpoint, eine Rückfrage an die GF und, falls nötig, automatisch eine Freigabe (Status *Freigabe erforderlich*).
+4. **Limit erreicht:** Mitarbeiter und Aufgabe werden pausiert und ein Checkpoint wird gespeichert. Nach Ablauf erscheint die Aufgabe auf dem Dashboard unter „Wartet auf Sie“. *Fortsetzen* erzeugt ein kurzes Paket ab dem letzten Zwischenstand.
+5. **Freigaben (Stufe 3):** Freigeben oder Ablehnen verlangt eine frische Passkey-Bestätigung. Erteilt → die Aufgabe läuft weiter. Abgelehnt → die Aufgabe ist blockiert. Jede Entscheidung landet unveränderlich im Entscheidungsprotokoll.
+6. **Statusregeln:** Eine Aufgabe startet erst, wenn ihre Abhängigkeiten erledigt sind. Abschließen geht nur mit bestandener (oder nicht nötiger) Prüfung und ohne offene Freigabe. Den Status *Freigabe erforderlich* setzt nur ein Freigabeantrag.
+
+Alle Nachrichten (Übergaben, Ergebnisberichte, Rückfragen, Warnungen …) liegen zentral unter *Kommunikation*. Eine Stufe-2-Entscheidung benachrichtigt Projektleitung und Geschäftsführung automatisch.
 
 ## Sicherheit (Phase 2)
 

@@ -24,10 +24,10 @@ export interface NavEintrag {
 export const BEREICHE: NavEintrag[] = [
   { pfad: '/', text: 'Dashboard', Icon: LayoutDashboard },
   { pfad: '/mitarbeiter', text: 'KI-Mitarbeiter', Icon: Bot },
-  { pfad: '/aufgaben', text: 'Aufgaben & Aufträge', Icon: ListChecks, phase: 3 },
+  { pfad: '/aufgaben', text: 'Aufgaben & Aufträge', Icon: ListChecks },
   { pfad: '/projekte', text: 'Projekte', Icon: FolderKanban },
-  { pfad: '/kommunikation', text: 'Kommunikation', Icon: MessagesSquare, phase: 3 },
-  { pfad: '/freigaben', text: 'Entscheidungen & Freigaben', Icon: ShieldCheck, phase: 3 },
+  { pfad: '/kommunikation', text: 'Kommunikation', Icon: MessagesSquare },
+  { pfad: '/freigaben', text: 'Entscheidungen & Freigaben', Icon: ShieldCheck },
   { pfad: '/wissen', text: 'Unternehmenswissen', Icon: BookOpen, phase: 6 },
   { pfad: '/berichte', text: 'Berichte', Icon: FileText, phase: 6 },
   { pfad: '/benachrichtigungen', text: 'Benachrichtigungen', Icon: Bell, phase: 4 },

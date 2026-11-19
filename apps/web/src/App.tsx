@@ -7,7 +7,14 @@ import { useDaten } from './lib/daten';
 import { type Kopf, KopfKontext } from './lib/kopf';
 import { passt, usePfad } from './lib/router';
 import type { AuthStatus, Benutzer, Dashboard as DashboardDaten } from './lib/typen';
+import { ToastHost } from './komponenten/Toast';
+import { setzeDevLogin } from './lib/stepup';
 import { Anmeldung } from './seiten/Anmeldung';
+import { AufgabeDetail } from './seiten/AufgabeDetail';
+import { AufgabeNeu } from './seiten/AufgabeNeu';
+import { Aufgaben } from './seiten/Aufgaben';
+import { Freigaben } from './seiten/Freigaben';
+import { Kommunikation } from './seiten/Kommunikation';
 import { Dashboard } from './seiten/Dashboard';
 import { Einstellungen } from './seiten/Einstellungen';
 import { MitarbeiterSeite } from './seiten/MitarbeiterSeite';
@@ -21,7 +28,9 @@ export function App() {
 
   const pruefen = useCallback(async () => {
     try {
-      setStatus(await api.get<AuthStatus>('/auth/status'));
+      const st = await api.get<AuthStatus>('/auth/status');
+      setzeDevLogin(st.devLogin);
+      setStatus(st);
       setFehler(null);
     } catch (e) {
       setFehler(e instanceof ApiFehler ? e.message : 'Zentrale nicht erreichbar.');
@@ -64,11 +73,15 @@ function Angemeldet({ benutzer, abgemeldet }: { benutzer: Benutzer; abgemeldet: 
   let seite;
   let m: Record<string, string> | null;
   if (pfad === '/') seite = <Dashboard benutzer={benutzer} daten={dash.daten} fehler={dash.fehler?.message ?? null} />;
-  else if (pfad === '/mitarbeiter') seite = <MitarbeiterSeite />;
+  else if (pfad === '/mitarbeiter') seite = <MitarbeiterSeite benutzer={benutzer} />;
+  else if (pfad === '/aufgaben') seite = <Aufgaben key={location.search} benutzer={benutzer} />;
+  else if (pfad === '/kommunikation') seite = <Kommunikation benutzer={benutzer} gelesen={projekteGeaendert} />;
+  else if (pfad === '/freigaben') seite = <Freigaben benutzer={benutzer} geaendert={projekteGeaendert} />;
   else if (pfad === '/projekte') seite = <Projekte benutzer={benutzer} geaendert={projekteGeaendert} />;
   else if ((m = passt('/projekte/:slug', pfad))) seite = <ProjektDetail key={m.slug} slug={m.slug!} benutzer={benutzer} geaendert={projekteGeaendert} />;
   else if (pfad === '/einstellungen') seite = <Einstellungen benutzer={benutzer} abgemeldet={abgemeldet} />;
-  else if (pfad === '/aufgaben/neu') seite = <Platzhalter titel="Neuer Auftrag" phase={3} />;
+  else if (pfad === '/aufgaben/neu') seite = benutzer.rolle === 'gf' ? <AufgabeNeu key={location.search} /> : <NichtGefunden />;
+  else if ((m = passt('/aufgaben/:id', pfad))) seite = <AufgabeDetail key={m.id} id={m.id!} benutzer={benutzer} />;
   else {
     const b = BEREICHE.find((x) => x.pfad === pfad && x.phase);
     seite = b ? <Platzhalter titel={b.text} phase={b.phase!} /> : <NichtGefunden />;
@@ -82,10 +95,12 @@ function Angemeldet({ benutzer, abgemeldet }: { benutzer: Benutzer; abgemeldet: 
         titel={kopf.titel}
         kicker={kopf.kicker}
         offeneFreigaben={dash.daten?.zahlen.offene_freigaben}
+        ungelesen={dash.daten?.zahlen.ungelesen}
         projekteVersion={projekteVersion}
       >
         {seite}
       </Rahmen>
+      <ToastHost />
     </KopfKontext.Provider>
   );
 }

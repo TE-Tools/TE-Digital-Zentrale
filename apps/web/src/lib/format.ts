@@ -76,7 +76,33 @@ const AKTIONEN: Record<string, string> = {
   'passkey.hinzugefuegt': 'hat einen Passkey hinzugefügt',
   'projekt.angelegt': 'hat ein Projekt angelegt',
   'projekt.geaendert': 'hat ein Projekt geändert',
+  'aufgabe.angelegt': 'hat einen Auftrag erteilt',
+  'aufgabe.geaendert': 'hat eine Aufgabe geändert',
+  'aufgabe.status': 'hat den Status geändert',
+  'aufgabe.ergebnis': 'hat ein Ergebnis zurückgeführt',
+  'aufgabe.checkpoint': 'hat einen Zwischenstand gespeichert',
+  'aufgabe.limit': 'hat eine Limit-Pause eingetragen',
+  'aufgabe.fortgesetzt': 'hat eine Aufgabe fortgesetzt',
+  'aufgabe.abhaengigkeit': 'hat eine Abhängigkeit ergänzt',
+  'aufgabe.abhaengigkeit_entfernt': 'hat eine Abhängigkeit entfernt',
+  'nachricht.erfasst': 'hat eine Nachricht erfasst',
+  'entscheidung.dokumentiert': 'hat eine Entscheidung dokumentiert',
+  'freigabe.beantragt': 'hat eine Freigabe beantragt',
+  'freigabe.erteilt': 'hat eine Freigabe erteilt',
+  'freigabe.abgelehnt': 'hat eine Freigabe abgelehnt',
+  'freigabe.zurueckgezogen': 'hat eine Freigabe zurückgezogen',
+  'mitarbeiter.status': 'hat einen Mitarbeiterstatus gesetzt',
 };
+
+/** Link zum Objekt einer Aktivität (oder null). */
+export function aktivitaetLink(a: Aktivitaet): string | null {
+  if (!a.objekt_id) return null;
+  if (a.objekt_typ === 'projekt') return `/projekte/${a.objekt_id}`;
+  if (a.objekt_typ === 'aufgabe' || (a.objekt_typ === 'nachricht' && a.objekt_id.startsWith('TD-'))) return `/aufgaben/${a.objekt_id}`;
+  if (a.objekt_typ === 'freigabe' || a.objekt_typ === 'entscheidung') return '/freigaben';
+  if (a.objekt_typ === 'mitarbeiter') return '/mitarbeiter';
+  return null;
+}
 
 export function aktivitaetText(a: Aktivitaet): string {
   return AKTIONEN[a.aktion] ?? a.aktion;

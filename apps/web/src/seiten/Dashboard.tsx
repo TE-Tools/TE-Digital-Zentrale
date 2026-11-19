@@ -5,20 +5,23 @@ import {
   FolderKanban,
   Hourglass,
   ListChecks,
+  MessageCircleQuestion,
   OctagonX,
+  PlayCircle,
   Plus,
   ShieldCheck,
   Sparkles,
 } from 'lucide-preact';
+import { FREIGABE_TYP } from '../lib/texte';
 import { Karte, Kennzahl, Ladebalken, Leer, Pill } from '../komponenten/Bausteine';
 import { MitarbeiterKarte } from '../komponenten/Mitarbeiter';
-import { aktivitaetText, begruessung, datumLang, relativeZeit, toenung } from '../lib/format';
+import { aktivitaetLink, aktivitaetText, begruessung, datumLang, relativeZeit, toenung } from '../lib/format';
 import { useKopf } from '../lib/kopf';
 import type { Benutzer, Dashboard as DashboardDaten } from '../lib/typen';
 
 const STATUS = {
   ok: { text: 'Alles im grünen Bereich', sub: 'Keine Blockaden, keine offenen Freigaben', farbe: '#4CC38A' },
-  warnung: { text: 'Aufmerksamkeit nötig', sub: 'Offene Freigaben oder blockierte Aufgaben', farbe: '#E9A23B' },
+  warnung: { text: 'Aufmerksamkeit nötig', sub: 'Offene Freigaben, Rückfragen oder Blockaden', farbe: '#E9A23B' },
   kritisch: { text: 'Kritisch', sub: 'Dringende Freigabe oder wichtige Aufgabe blockiert', farbe: '#F0607A' },
 } as const;
 
@@ -57,24 +60,51 @@ export function Dashboard({ benutzer, daten, fehler }: { benutzer: Benutzer; dat
       {/* 3 – Wartet auf Sie (mobil direkt nach dem Status) */}
       <div class="sp-12 db-wartet">
         <Karte titel="Wartet auf Sie" kicker="Freigaben & Eskalationen" mehr={{ text: 'Alle Freigaben', href: '/freigaben' }}>
-          {daten.freigaben.length === 0 ? (
+          {daten.freigaben.length === 0 && daten.fortsetzbar.length === 0 && daten.rueckfragen.length === 0 && z.in_pruefung === 0 ? (
             <div class="hinweis ok">
               <CheckCircle2 size={18} aria-hidden="true" />
-              <p><b>Nichts offen.</b> Es liegen keine Freigaben oder Eskalationen vor.</p>
+              <p><b>Nichts offen.</b> Es liegen keine Freigaben, Rückfragen oder Prüfungen vor.</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 10 }}>
               {daten.freigaben.map((f) => (
-                <div class={`hinweis ${f.dringend ? 'krit' : ''}`} key={f.id}>
+                <a class={`hinweis ${f.dringend ? 'krit' : ''}`} key={f.id} href="/freigaben" style={{ textDecoration: 'none', color: 'inherit' }}>
                   <ShieldCheck size={18} aria-hidden="true" />
                   <p style={{ flex: 1 }}>
                     <b>{f.titel}</b>
                     <br />
-                    <span class="zeitstempel">{f.typ} · angefragt {relativeZeit(f.angefragt_am)}{f.angefragt_von ? ` von ${f.angefragt_von}` : ''}</span>
+                    <span class="zeitstempel">{FREIGABE_TYP[f.typ] ?? f.typ} · {f.id} · beantragt {relativeZeit(f.angefragt_am)}</span>
                   </p>
-                  {f.dringend ? <Pill ton="krit">Dringend</Pill> : <Pill ton="gold">Stufe 3</Pill>}
-                </div>
+                  {f.dringend ? <Pill ton="krit">Dringend</Pill> : <Pill ton="gold">Freigabe</Pill>}
+                </a>
               ))}
+              {daten.fortsetzbar.map((f) => (
+                <a class="hinweis warn" key={f.id} href={`/aufgaben/${f.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <PlayCircle size={18} aria-hidden="true" />
+                  <p style={{ flex: 1 }}>
+                    <b>{f.id} fortsetzen:</b> {f.titel}
+                    <br />
+                    <span class="zeitstempel">{f.mitarbeiter} ist seit {relativeZeit(f.limit_bis).replace('vor ', '')} wieder verfügbar</span>
+                  </p>
+                  <Pill ton="warn">Limit vorbei</Pill>
+                </a>
+              ))}
+              {daten.rueckfragen.map((r) => (
+                <a class="hinweis info" key={r.id} href={r.aufgabe_id ? `/aufgaben/${r.aufgabe_id}` : '/kommunikation'} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <MessageCircleQuestion size={18} aria-hidden="true" />
+                  <p style={{ flex: 1, minWidth: 0 }}>
+                    <b>Rückfrage{r.aufgabe_id ? ` zu ${r.aufgabe_id}` : ''}:</b> {r.inhalt.length > 140 ? r.inhalt.slice(0, 140) + ' …' : r.inhalt}
+                    <br />
+                    <span class="zeitstempel">{relativeZeit(r.zeit)}</span>
+                  </p>
+                </a>
+              ))}
+              {z.in_pruefung > 0 && (
+                <a class="hinweis" href="/aufgaben?gruppe=pruefung" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <ListChecks size={18} aria-hidden="true" />
+                  <p><b>{z.in_pruefung} Ergebnis{z.in_pruefung === 1 ? '' : 'se'} zur Prüfung</b> – abnehmen oder zurückgeben.</p>
+                </a>
+              )}
             </div>
           )}
         </Karte>
@@ -82,7 +112,7 @@ export function Dashboard({ benutzer, daten, fehler }: { benutzer: Benutzer; dat
 
       {/* 2 – Kennzahlen */}
       <div class="sp-3 db-zahl"><Kennzahl titel="Offene Freigaben" wert={z.offene_freigaben} fuss={z.dringende_freigaben ? `${z.dringende_freigaben} dringend` : 'Stufe-3-Entscheidungen'} Icon={ShieldCheck} ton="gold" /></div>
-      <div class="sp-3 db-zahl"><Kennzahl titel="In Bearbeitung" wert={z.in_arbeit} fuss={`${z.wartend} wartend`} Icon={CircleDot} /></div>
+      <div class="sp-3 db-zahl"><Kennzahl titel="In Bearbeitung" wert={z.in_arbeit} fuss={`${z.in_pruefung} in Prüfung · ${z.wartend} wartend`} Icon={CircleDot} /></div>
       <div class="sp-3 db-zahl"><Kennzahl titel="Blockiert" wert={z.blockiert} fuss="brauchen Klärung" Icon={OctagonX} ton={z.blockiert ? 'krit' : undefined} /></div>
       <div class="sp-3 db-zahl"><Kennzahl titel="Heute erledigt" wert={z.heute_abgeschlossen} fuss={`${z.abgeschlossen} insgesamt`} Icon={CheckCircle2} ton="ok" /></div>
 
@@ -147,7 +177,7 @@ export function Dashboard({ benutzer, daten, fehler }: { benutzer: Benutzer; dat
                   <span class="punkt" aria-hidden="true" />
                   <div class="text">
                     <b>{a.akteur_name ?? 'System'}</b> {aktivitaetText(a)}
-                    {a.objekt_typ === 'projekt' && a.objekt_id ? <> · <a href={`/projekte/${a.objekt_id}`}>{a.objekt_id}</a></> : null}
+                    {aktivitaetLink(a) && a.objekt_id ? <> · <a href={aktivitaetLink(a)!}>{a.objekt_id}</a></> : null}
                     <div class="zeitstempel">{relativeZeit(a.zeit)}</div>
                   </div>
                 </li>
