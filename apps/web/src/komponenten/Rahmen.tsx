@@ -1,0 +1,138 @@
+import type { ComponentChildren } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
+import { LayoutDashboard, ListChecks, Menu, Plus, ShieldCheck } from 'lucide-preact';
+import { initialen } from '../lib/format';
+import type { Benutzer } from '../lib/typen';
+import { useDaten } from '../lib/daten';
+import { BEREICHE, istAktiv } from './navigation';
+import { MarkenKachel } from './Marke';
+
+interface ProjektKurz { slug: string; name: string; farbe: string; status: string }
+
+export function Rahmen(props: {
+  pfad: string;
+  benutzer: Benutzer;
+  titel: string;
+  kicker?: string;
+  aktionen?: ComponentChildren;
+  offeneFreigaben?: number;
+  /** Erhöhen, um die Projektliste der Seitenleiste neu zu laden */
+  projekteVersion?: number;
+  children: ComponentChildren;
+}) {
+  const [mehrOffen, setMehrOffen] = useState(false);
+  const projekte = useDaten<{ projekte: ProjektKurz[] }>('/projekte', 300_000, props.projekteVersion);
+  const sichtbare = (projekte.daten?.projekte ?? []).filter((p) => p.status !== 'archiviert');
+
+  useEffect(() => setMehrOffen(false), [props.pfad]);
+  useEffect(() => {
+    document.title = `${props.titel} · TE-Digital Zentrale`;
+  }, [props.titel]);
+
+  const aktuell = (p: string) => (istAktiv(p, props.pfad) ? 'page' : undefined);
+
+  return (
+    <div class="app">
+      <aside class="seitenleiste" aria-label="Hauptnavigation">
+        <a class="marke" href="/">
+          <MarkenKachel />
+          <span class="marke-text">
+            <b>TE-Digital</b>
+            <span>Zentrale</span>
+          </span>
+        </a>
+        <nav>
+          {BEREICHE.map((b) => (
+            <a class="nav-link" href={b.pfad} aria-current={aktuell(b.pfad)} key={b.pfad}>
+              <b.Icon size={18} aria-hidden="true" />
+              {b.text}
+              {b.pfad === '/freigaben' && (props.offeneFreigaben ?? 0) > 0 ? (
+                <span class="badge">{props.offeneFreigaben}</span>
+              ) : b.phase ? (
+                <span class="bald" title={`Folgt in Phase ${b.phase}`}>P{b.phase}</span>
+              ) : null}
+            </a>
+          ))}
+          {sichtbare.length > 0 && <div class="nav-gruppe">Projekte</div>}
+          {sichtbare.map((p) => (
+            <a class="nav-link" href={`/projekte/${p.slug}`} aria-current={aktuell(`/projekte/${p.slug}`)} key={p.slug}>
+              <span class="projekt-punkt" style={{ background: p.farbe }} aria-hidden="true" />
+              {p.name}
+            </a>
+          ))}
+        </nav>
+        <div class="seitenleiste-fuss">
+          <span class="avatar" aria-hidden="true">{initialen(props.benutzer.name)}</span>
+          <span class="wer">
+            <b>{props.benutzer.name}</b>
+            {props.benutzer.rolle === 'gf' ? 'Geschäftsführung' : 'Lesezugriff'}
+          </span>
+        </div>
+      </aside>
+
+      <div class="haupt">
+        <header class="kopf">
+          <a href="/" aria-label="Zum Dashboard">
+            <MarkenKachel groesse={30} />
+          </a>
+          <div style={{ minWidth: 0 }}>
+            {props.kicker && <p class="kicker">{props.kicker}</p>}
+            <h1>{props.titel}</h1>
+          </div>
+          <div class="kopf-rechts">{props.aktionen}</div>
+        </header>
+        <main class="inhalt" id="inhalt">
+          {props.children}
+        </main>
+      </div>
+
+      <nav class="unten-nav" aria-label="Schnellnavigation">
+        <a class="unten-link" href="/" aria-current={props.pfad === '/' ? 'page' : undefined}>
+          <LayoutDashboard size={21} aria-hidden="true" />
+          Übersicht
+        </a>
+        <a class="unten-link" href="/aufgaben" aria-current={aktuell('/aufgaben')}>
+          <ListChecks size={21} aria-hidden="true" />
+          Aufgaben
+        </a>
+        <a class="unten-link" href="/aufgaben/neu" aria-label="Neuer Auftrag">
+          <span class="unten-plus">
+            <Plus size={24} aria-hidden="true" />
+          </span>
+        </a>
+        <a class="unten-link" href="/freigaben" aria-current={aktuell('/freigaben')}>
+          <ShieldCheck size={21} aria-hidden="true" />
+          Freigaben
+          {(props.offeneFreigaben ?? 0) > 0 && <span class="badge">{props.offeneFreigaben}</span>}
+        </a>
+        <button class="unten-link" type="button" onClick={() => setMehrOffen(true)} aria-expanded={mehrOffen}>
+          <Menu size={21} aria-hidden="true" />
+          Mehr
+        </button>
+      </nav>
+
+      {mehrOffen && (
+        <>
+          <div class="blatt-hintergrund" onClick={() => setMehrOffen(false)} />
+          <div class="blatt" role="dialog" aria-modal="true" aria-label="Alle Bereiche">
+            <div class="blatt-griff" />
+            {BEREICHE.map((b) => (
+              <a class="nav-link" href={b.pfad} aria-current={aktuell(b.pfad)} key={b.pfad}>
+                <b.Icon size={19} aria-hidden="true" />
+                {b.text}
+                {b.phase && <span class="bald">P{b.phase}</span>}
+              </a>
+            ))}
+            <div class="nav-gruppe">Projekte</div>
+            {sichtbare.map((p) => (
+              <a class="nav-link" href={`/projekte/${p.slug}`} key={p.slug}>
+                <span class="projekt-punkt" style={{ background: p.farbe }} aria-hidden="true" />
+                {p.name}
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

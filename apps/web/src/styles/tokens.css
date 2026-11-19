@@ -1,0 +1,89 @@
+/* ------------------------------------------------------------------
+   Design-Tokens – Grundlage: te-alltagshelfer.org (portfolio.html).
+   Helles, warmes Papier, Gold nur als Akzent, Projekt-Hausfarben.
+   Dunkelmodus abgeleitet vom dunklen Abschlussband (.cta-band).
+   ------------------------------------------------------------------ */
+:root {
+  --paper: #FBFAF7;
+  --paper-2: #F4F2EC;
+  --surface: #FFFFFF;
+  --surface-2: #FBFAF7;
+  --ink: #14161A;
+  --ink-2: #2B2F36;
+  --body: #4A4F58;
+  --body-soft: #6E737C;
+  --line: #E6E2D8;
+  --line-2: #D6D1C2;
+  --gold: #C8912A;
+  --gold-text: #8A6512;
+  --gold-wash: #FBF4E2;
+  --gold-line: #EFE0BC;
+  --on-gold: #221a04;
+
+  /* Status (aus den TE-Apps), immer mit Symbol + Text kombiniert */
+  --ok: #0F7A52;      --ok-wash: #E7F3EE;
+  --warn: #A8620A;    --warn-wash: #FBF0E0;
+  --krit: #C02B48;    --krit-wash: #FBE9EC;
+  --info: #1D4ED8;    --info-wash: #E8EEFC;
+
+  --radius-s: 10px;
+  --radius: 14px;
+  --radius-l: 18px;
+  --shadow: 0 1px 2px rgba(20,22,26,.04), 0 8px 24px rgba(20,22,26,.05);
+  --shadow-lift: 0 2px 4px rgba(20,22,26,.05), 0 14px 32px rgba(20,22,26,.09);
+
+  --font-head: 'Space Grotesk Variable', 'Space Grotesk', 'Inter Variable', system-ui, sans-serif;
+  --font-body: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --seitenleiste: 264px;
+  --unten-nav: 64px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14161A;
+    --paper-2: #1A1C21;
+    --surface: #1C1F24;
+    --surface-2: #22252B;
+    --ink: #F3F1EC;
+    --ink-2: #E2DFD8;
+    --body: #C9C6BF;
+    --body-soft: #9A978F;
+    --line: rgba(255,255,255,.10);
+    --line-2: rgba(255,255,255,.18);
+    --gold-text: #E3B04F;
+    --gold-wash: rgba(200,145,42,.14);
+    --gold-line: rgba(200,145,42,.35);
+    --ok: #4CC38A;    --ok-wash: rgba(76,195,138,.13);
+    --warn: #E9A23B;  --warn-wash: rgba(233,162,59,.14);
+    --krit: #F0607A;  --krit-wash: rgba(240,96,122,.14);
+    --info: #7FA2FF;  --info-wash: rgba(127,162,255,.14);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    --shadow-lift: 0 2px 4px rgba(0,0,0,.35), 0 14px 32px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #14161A;
+  --paper-2: #1A1C21;
+  --surface: #1C1F24;
+  --surface-2: #22252B;
+  --ink: #F3F1EC;
+  --ink-2: #E2DFD8;
+  --body: #C9C6BF;
+  --body-soft: #9A978F;
+  --line: rgba(255,255,255,.10);
+  --line-2: rgba(255,255,255,.18);
+  --gold-text: #E3B04F;
+  --gold-wash: rgba(200,145,42,.14);
+  --gold-line: rgba(200,145,42,.35);
+  --ok: #4CC38A;    --ok-wash: rgba(76,195,138,.13);
+  --warn: #E9A23B;  --warn-wash: rgba(233,162,59,.14);
+  --krit: #F0607A;  --krit-wash: rgba(240,96,122,.14);
+  --info: #7FA2FF;  --info-wash: rgba(127,162,255,.14);
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  --shadow-lift: 0 2px 4px rgba(0,0,0,.35), 0 14px 32px rgba(0,0,0,.35);
+  color-scheme: dark;
+}

@@ -1,0 +1,40 @@
+.anmeldung { min-height: 100dvh; display: grid; grid-template-columns: 1.05fr .95fr; }
+.anm-marke {
+  background: #14161A; color: rgba(255,255,255,.76); position: relative; overflow: hidden;
+  display: flex; align-items: center; padding: 48px clamp(28px, 6vw, 88px);
+}
+.anm-marke::after {
+  content: ""; position: absolute; right: -140px; top: -120px; width: 520px; height: 520px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,145,42,.25), transparent 68%); pointer-events: none;
+}
+.anm-marke-inhalt { position: relative; z-index: 1; max-width: 520px; }
+.anm-wort { font-family: var(--font-head); font-weight: 700; font-size: 21px; color: #fff; }
+.anm-marke .kicker { color: var(--gold); }
+.anm-marke h1 { color: #fff; font-size: clamp(32px, 4.4vw, 50px); line-height: 1.08; margin: 0 0 16px; }
+.anm-marke h1 em { font-style: normal; color: var(--gold); }
+.anm-sub { font-size: 17px; line-height: 1.6; margin: 0 0 24px; }
+.anm-fakten { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: rgba(255,255,255,.66); }
+.anm-fakten li { display: flex; align-items: center; gap: 8px; }
+.anm-fakten svg { color: var(--gold); }
+
+.anm-formular { display: flex; align-items: center; justify-content: center; padding: 32px 20px; background: var(--paper); }
+.anm-karte { width: 100%; max-width: 420px; }
+.anm-karte .karte-inhalt { padding: 26px; }
+.anm-stapel { display: flex; flex-direction: column; gap: 16px; }
+.anm-stapel h2 { font-size: 23px; margin-bottom: 6px; }
+.anm-text { margin: 0; font-size: 14.5px; color: var(--body); }
+.anm-dev { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line-2); }
+.codes {
+  margin: 0; padding: 14px 14px 14px 36px; background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius-s);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-family: ui-monospace, 'Cascadia Mono', monospace; font-size: 14px; color: var(--ink);
+}
+
+@media (max-width: 860px) {
+  .anmeldung { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .anm-marke { padding: calc(28px + env(safe-area-inset-top)) 20px 28px; }
+  .anm-marke h1 { font-size: 30px; }
+  .anm-sub, .anm-fakten { display: none; }
+  .anm-marke .kicker { margin-top: 20px !important; }
+  .anm-formular { align-items: flex-start; padding-top: 24px; }
+  .codes { grid-template-columns: 1fr; }
+}

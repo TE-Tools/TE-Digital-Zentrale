@@ -1,0 +1,59 @@
+// TE-Digital Zentrale – ein Worker liefert PWA (Static Assets) und API aus.
+// Tarif: Workers Free (Entscheidung E8). Keine Paid-Funktionen verwenden.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "te-zentrale",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "assets": {
+    // Ergebnis von "npm run build -w apps/web"
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Nur die API läuft durch den Worker, alles andere direkt aus den Assets.
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "te-zentrale-db",
+      // Wird nach der Anlage in Cloudflare (EU) eingetragen. Lokal ohne Bedeutung.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "RP_NAME": "TE-Digital Zentrale",
+    "RP_ID": "localhost",
+    "ERLAUBTE_ORIGINS": "http://localhost:8787,http://localhost:5173"
+  },
+  "observability": { "enabled": true },
+
+  // Produktion: npx wrangler deploy --env produktion
+  // Vorher (Stufe-3-Freigabe!): D1 in der EU anlegen und ID eintragen:
+  //   npx wrangler d1 create te-zentrale-db --jurisdiction eu
+  //   npx wrangler d1 migrations apply te-zentrale-db --remote --env produktion
+  //   npx wrangler secret put EINRICHTUNGSCODE --env produktion
+  "env": {
+    "produktion": {
+      "name": "te-zentrale",
+      "workers_dev": false,
+      "routes": [{ "pattern": "zentrale.te-alltagshelfer.org", "custom_domain": true }],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "te-zentrale-db",
+          "database_id": "NACH-ANLAGE-EINTRAGEN",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": {
+        "RP_NAME": "TE-Digital Zentrale",
+        "RP_ID": "zentrale.te-alltagshelfer.org",
+        "ERLAUBTE_ORIGINS": "https://zentrale.te-alltagshelfer.org"
+      }
+    }
+  }
+}

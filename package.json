@@ -1,0 +1,31 @@
+{
+  "name": "te-digital-zentrale",
+  "private": true,
+  "description": "TE-Digital AI Company – zentrale Unternehmenssteuerung (PWA + Cloudflare Worker)",
+  "workspaces": [
+    "apps/web",
+    "apps/worker"
+  ],
+  "scripts": {
+    "dev": "npm run build -w apps/web && npm run dev -w apps/worker",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "typecheck": "npm run typecheck -w apps/worker && npm run typecheck -w apps/web",
+    "test": "npm run test -w apps/worker && npm run test -w apps/web",
+    "db:migrate:lokal": "npm run db:migrate:lokal -w apps/worker",
+    "icons": "node scripts/icons.mjs",
+    "pruefen": "npm run typecheck && npm test && npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "workerd@1.20260815.1": true,
+    "workerd@1.20261118.1": true,
+    "esbuild@0.28.1": true,
+    "esbuild@0.28.2": true
+  },
+  "devDependencies": {
+    "sharp": "^0.35.5"
+  }
+}

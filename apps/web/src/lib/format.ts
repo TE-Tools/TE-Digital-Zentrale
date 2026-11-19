@@ -1,0 +1,94 @@
+import type { Aktivitaet, MitarbeiterStatus, Mitarbeiter } from './typen';
+
+/** „gerade eben“, „vor 5 Min.“, „vor 3 Std.“, „gestern“, „vor 4 Tagen“, sonst Datum. */
+export function relativeZeit(iso: string | null | undefined, jetzt: number = Date.now()): string {
+  if (!iso) return 'nie';
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '–';
+  const s = Math.round((jetzt - t) / 1000);
+  if (s < 0) return zukunft(-s);
+  if (s < 45) return 'gerade eben';
+  const min = Math.round(s / 60);
+  if (min < 60) return `vor ${min} Min.`;
+  const std = Math.round(min / 60);
+  if (std < 24) return `vor ${std} Std.`;
+  const tage = Math.round(std / 24);
+  if (tage === 1) return 'gestern';
+  if (tage < 7) return `vor ${tage} Tagen`;
+  return datum(iso);
+}
+
+function zukunft(s: number): string {
+  const min = Math.round(s / 60);
+  if (min < 1) return 'gleich';
+  if (min < 60) return `in ${min} Min.`;
+  const std = Math.round(min / 60);
+  if (std < 24) return `in ${std} Std.`;
+  return `in ${Math.round(std / 24)} Tagen`;
+}
+
+export function datum(iso: string): string {
+  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+export function datumLang(d: Date = new Date()): string {
+  return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+export function begruessung(stunde: number = new Date().getHours()): string {
+  if (stunde < 5) return 'Gute Nacht';
+  if (stunde < 11) return 'Guten Morgen';
+  if (stunde < 18) return 'Guten Tag';
+  return 'Guten Abend';
+}
+
+export function initialen(name: string): string {
+  const teile = name.replace(/\(.*?\)/g, '').trim().split(/[\s-]+/).filter(Boolean);
+  return ((teile[0]?.[0] ?? '') + (teile[1]?.[0] ?? '')).toUpperCase() || '?';
+}
+
+export const STATUS_TEXT: Record<MitarbeiterStatus, { text: string; ton: 'ok' | 'warn' | 'krit' | 'info' | '' }> = {
+  unbekannt: { text: 'Kein Status', ton: '' },
+  verfuegbar: { text: 'Verfügbar', ton: 'ok' },
+  arbeitet: { text: 'Arbeitet', ton: 'info' },
+  wartend_limit: { text: 'Limit – Pause', ton: 'warn' },
+  pausiert: { text: 'Pausiert', ton: '' },
+};
+
+export const ZUGANG_TEXT: Record<Mitarbeiter['zugang'], string> = {
+  abo: 'Abo',
+  kostenlos: 'Kostenlos (Web)',
+  flexibel: 'Flexibel',
+};
+
+export const ARBEITSWEG_TEXT: Record<Mitarbeiter['arbeitsweg'], string> = {
+  mcp: 'Direktzugriff (MCP)',
+  paket: 'Übergabepaket',
+  github: 'GitHub',
+  flexibel: 'je nach Besetzung',
+};
+
+const AKTIONEN: Record<string, string> = {
+  'zentrale.eingerichtet': 'hat die Zentrale eingerichtet',
+  'zugang.eingerichtet': 'hat den Zugang eingerichtet',
+  'anmeldung.passkey': 'hat sich mit Passkey angemeldet',
+  'anmeldung.wiederherstellungscode': 'hat sich mit Wiederherstellungscode angemeldet',
+  'passkey.hinzugefuegt': 'hat einen Passkey hinzugefügt',
+  'projekt.angelegt': 'hat ein Projekt angelegt',
+  'projekt.geaendert': 'hat ein Projekt geändert',
+};
+
+export function aktivitaetText(a: Aktivitaet): string {
+  return AKTIONEN[a.aktion] ?? a.aktion;
+}
+
+/** Ein Status gilt als veraltet, wenn die letzte Bestätigung älter als 6 Std. ist. */
+export function istVeraltet(iso: string | null, jetzt: number = Date.now(), stunden = 6): boolean {
+  if (!iso) return true;
+  return jetzt - Date.parse(iso) > stunden * 3_600_000;
+}
+
+/** Hellere Kachel-Tönung zu einer Hausfarbe (wie #047857 → #E7F3EE auf der Website). */
+export function toenung(hex: string, anteil = 0.12): string {
+  return `color-mix(in srgb, ${hex} ${Math.round(anteil * 100)}%, var(--surface))`;
+}
