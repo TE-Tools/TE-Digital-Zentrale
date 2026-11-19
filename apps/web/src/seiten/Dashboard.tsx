@@ -13,6 +13,18 @@ import {
   Sparkles,
 } from 'lucide-preact';
 import { FREIGABE_TYP } from '../lib/texte';
+import { KostenBalken } from './Berichte';
+
+const KOSTEN_GRENZEN = [
+  { dienst: 'workers', metrik: 'anfragen', grenze: 100_000, text: 'Worker-Anfragen' },
+  { dienst: 'd1', metrik: 'zeilen_geschrieben', grenze: 100_000, text: 'D1 geschriebene Zeilen' },
+];
+
+function kurzbericht(k: Record<string, number>): string {
+  return [`${k.erledigt ?? 0} erledigt`, `${k.offen ?? 0} offen`, k.pruefung ? `${k.pruefung} zur Prüfung` : '', k.freigaben_offen ? `${k.freigaben_offen} Freigaben offen` : '', k.blockiert ? `${k.blockiert} blockiert` : '']
+    .filter(Boolean)
+    .join(' · ');
+}
 import { vorlesen } from '../komponenten/Diktat';
 import { Volume2 } from 'lucide-preact';
 import { Karte, Kennzahl, Ladebalken, Leer, Pill } from '../komponenten/Bausteine';
@@ -207,9 +219,21 @@ export function Dashboard({ benutzer, daten, fehler }: { benutzer: Benutzer; dat
             </ul>
           )}
         </Karte>
-        <Karte titel="Tagesbericht" kicker="Heute">
-          <Leer Icon={Hourglass} titel="Folgt in Phase 6" text="Der Tagesbericht wird automatisch aus Aufgaben, Freigaben und Aktivitäten erstellt und morgens per Push zugestellt." />
+        <Karte titel="Tagesbericht" kicker={daten.tagesbericht ? daten.tagesbericht.datum.split('-').reverse().join('.') : 'Heute'} mehr={{ text: 'Alle Berichte', href: '/berichte' }}>
+          {daten.tagesbericht ? (
+            <a href={`/berichte/${daten.tagesbericht.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'grid', gap: 6 }}>
+              <span class="zeitstempel">{kurzbericht(daten.tagesbericht.kennzahlen)}</span>
+              <span style={{ color: 'var(--gold-text)', fontWeight: 600, fontSize: 13.5 }}>Bericht öffnen →</span>
+            </a>
+          ) : (
+            <Leer Icon={Hourglass} titel="Noch kein Tagesbericht" text="Er entsteht automatisch zur eingestellten Uhrzeit und kommt als Push." />
+          )}
         </Karte>
+        {daten.kosten.length > 0 && (
+          <Karte titel="Free-Tarif" kicker="Nutzung heute" mehr={{ text: 'Details', href: '/berichte?ansicht=kosten' }}>
+            <KostenBalken werte={daten.kosten.map((k) => ({ ...k, erfasst_am: '' }))} grenzen={KOSTEN_GRENZEN} />
+          </Karte>
+        )}
         <Karte titel="Hinweis zur Arbeitsweise" kicker="KI-Zugänge">
           <div class="hinweis info">
             <Sparkles size={18} aria-hidden="true" />

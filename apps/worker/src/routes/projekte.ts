@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AppEnv } from '../env';
 import { auditStatement } from '../lib/audit';
+import { teilAenderung } from '../lib/eingabe';
 import { ApiFehler, validierungsFehler } from '../lib/fehler';
 import { gfPflicht, sitzungPflicht } from '../lib/sitzung';
 import { jetzt } from '../lib/zeit';
@@ -32,7 +33,7 @@ const Felder = z.object({
 const Neu = Felder.extend({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,39}$/, 'Kleinbuchstaben, Ziffern, Bindestrich (2–40)'),
 });
-const Aenderung = Felder.partial().extend({ version: z.number().int().min(1) });
+const Aenderung = teilAenderung(Felder).extend({ version: z.number().int().min(1) });
 
 const SPALTEN = `p.slug, p.name, p.kurz, p.beschreibung, p.ziele, p.repo_url, p.website_url, p.hosting, p.stack,
   p.farbe, p.status, p.sortierung, p.erstellt_am, p.aktualisiert_am, p.version`;

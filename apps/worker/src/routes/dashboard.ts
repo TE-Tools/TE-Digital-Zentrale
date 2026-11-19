@@ -13,7 +13,7 @@ dashboard.get('/', async (c) => {
   const heute = new Date().toISOString().slice(0, 10);
 
   // Ein einziger Roundtrip (D1 batch) – wichtig für den Free-Tarif (max. 50 Abfragen/Anfrage).
-  const [zahlen, mitarbeiter, projekte, freigaben, aktivitaeten, fortsetzbar, rueckfragen] = await db.batch([
+  const [zahlen, mitarbeiter, projekte, freigaben, aktivitaeten, fortsetzbar, rueckfragen, bericht, kosten] = await db.batch([
     db
       .prepare(
         `SELECT
@@ -65,6 +65,8 @@ dashboard.get('/', async (c) => {
         WHERE n.an = 'gf' AND n.gelesen_am IS NULL AND n.art IN ('rueckfrage','eskalation','warnung')
         ORDER BY n.zeit DESC LIMIT 10`,
     ),
+    db.prepare(`SELECT id, titel, datum, kennzahlen FROM berichte WHERE typ = 'tag' ORDER BY datum DESC LIMIT 1`),
+    db.prepare(`SELECT dienst, metrik, wert, grenze, datum FROM kosten_messwerte WHERE datum = (SELECT MAX(datum) FROM kosten_messwerte)`),
   ]);
 
   const z = (zahlen?.results[0] ?? {}) as Record<string, number>;
@@ -85,6 +87,8 @@ dashboard.get('/', async (c) => {
     aktivitaeten: aktivitaeten?.results ?? [],
     fortsetzbar: fortsetzbar?.results ?? [],
     rueckfragen: rueckfragen?.results ?? [],
+    tagesbericht: ((bericht?.results ?? []) as { kennzahlen: string }[]).map((b) => ({ ...b, kennzahlen: JSON.parse(b.kennzahlen) }))[0] ?? null,
+    kosten: kosten?.results ?? [],
   });
 });
 

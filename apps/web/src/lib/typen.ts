@@ -92,6 +92,8 @@ export interface Dashboard {
   aktivitaeten: Aktivitaet[];
   fortsetzbar: { id: string; titel: string; projekt_slug: string; mitarbeiter: string; limit_bis: string }[];
   rueckfragen: { id: number; von: string; aufgabe_id: string | null; inhalt: string; zeit: string; aufgabe_titel: string | null }[];
+  tagesbericht: { id: number; titel: string; datum: string; kennzahlen: Record<string, number> } | null;
+  kosten: { dienst: string; metrik: string; wert: number; grenze: number; datum: string }[];
 }
 
 // ---------------------------------------------------------------- Phase 3

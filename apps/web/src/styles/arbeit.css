@@ -84,3 +84,37 @@ details.aufklapp > summary::-webkit-details-marker { display: none; }
 details.aufklapp > summary::before { content: '›'; display: inline-block; transition: transform .15s ease; font-size: 18px; line-height: 1; color: var(--gold-text); }
 details.aufklapp[open] > summary::before { transform: rotate(90deg); }
 details.aufklapp > div { padding-top: 12px; }
+
+/* ---------- Phase 6: Markdown, Wissen, Berichte ---------- */
+.markdown { color: var(--ink-2); font-size: 14.5px; line-height: 1.65; word-break: break-word; }
+.markdown > :first-child { margin-top: 0; }
+.markdown h2 { font-size: 21px; margin: 18px 0 8px; }
+.markdown h3 { font-size: 17px; margin: 18px 0 6px; }
+.markdown h4, .markdown h5 { font-size: 15px; margin: 14px 0 4px; }
+.markdown p { margin: 0 0 10px; }
+.markdown ul, .markdown ol { margin: 0 0 10px; padding-left: 20px; }
+.markdown li { margin: 2px 0; }
+.markdown li.md-tief { margin-left: 18px; list-style-type: circle; }
+.markdown code { font-family: ui-monospace, 'Cascadia Mono', monospace; font-size: .9em; background: var(--paper-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+.markdown .md-code { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius-s); padding: 12px; overflow: auto; font-size: 12.5px; font-family: ui-monospace, 'Cascadia Mono', monospace; }
+.markdown blockquote { margin: 0 0 10px; padding: 6px 12px; border-left: 3px solid var(--gold); background: var(--gold-wash); border-radius: 0 8px 8px 0; }
+.md-tabelle { overflow-x: auto; margin: 0 0 12px; }
+.markdown table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.markdown th, .markdown td { border-bottom: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+.markdown th { color: var(--body-soft); font-weight: 600; font-size: 12.5px; background: var(--paper-2); }
+
+.wissen-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.wissen-karte { display: grid; gap: 8px; padding: 14px 16px; text-decoration: none; color: inherit; }
+.wissen-karte b { color: var(--ink); font-family: var(--font-head); font-size: 15px; line-height: 1.3; }
+.wissen-karte p { margin: 0; font-size: 13.5px; color: var(--body); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.zaehler { font-size: 12px; color: var(--body-soft); text-align: right; font-variant-numeric: tabular-nums; }
+.zaehler.zu-lang { color: var(--krit); }
+
+.balken { display: grid; gap: 4px; }
+.balken-kopf { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.balken-kopf b { color: var(--ink-2); font-weight: 600; }
+.balken-spur { height: 8px; border-radius: 4px; background: var(--paper-2); overflow: hidden; }
+.balken-spur > i { display: block; height: 100%; border-radius: 4px; background: var(--ok); }
+.balken-spur > i.warn { background: var(--warn); }
+.balken-spur > i.krit { background: var(--krit); }
+.protokoll td { font-size: 13px; }

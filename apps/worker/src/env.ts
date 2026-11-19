@@ -20,6 +20,9 @@ export interface Env {
   ZENTRALE_SCHLUESSEL?: string;
   /** Organisation für die GitHub-App (Standard TE-Tools) */
   GITHUB_ORGANISATION?: string;
+  /** Kostenwächter: Cloudflare-Konto-ID und API-Token nur mit „Account Analytics: Lesen“ */
+  CF_ACCOUNT_ID?: string;
+  CF_ANALYTICS_TOKEN?: string;
 }
 
 export interface Benutzer {

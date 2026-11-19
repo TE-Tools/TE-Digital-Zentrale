@@ -85,6 +85,14 @@ describe('Aufgaben', () => {
     expect(r.body.fehler.code).toBe('zyklus');
   });
 
+  it('Teil-Änderung der Übergabe überschreibt andere Felder nicht', async () => {
+    const cookie = await devAnmelden();
+    const id = await neueAufgabe(cookie);
+    await anfrage(`/api/aufgaben/${id}`, { methode: 'PATCH', cookie, body: { version: await version(cookie, id), uebergabe: { dateien: 'web/index.html' } } });
+    const d = await anfrage(`/api/aufgaben/${id}`, { cookie });
+    expect(d.body.uebergabe).toMatchObject({ dateien: 'web/index.html', ziel: 'Mehr Anmeldungen', akzeptanzkriterien: 'Max. 120 Wörter' });
+  });
+
   it('erkennt gleichzeitige Änderungen über die Version', async () => {
     const cookie = await devAnmelden();
     const id = await neueAufgabe(cookie);

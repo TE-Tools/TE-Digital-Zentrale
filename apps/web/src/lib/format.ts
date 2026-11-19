@@ -92,6 +92,25 @@ const AKTIONEN: Record<string, string> = {
   'freigabe.abgelehnt': 'hat eine Freigabe abgelehnt',
   'freigabe.zurueckgezogen': 'hat eine Freigabe zurückgezogen',
   'mitarbeiter.status': 'hat einen Mitarbeiterstatus gesetzt',
+  'wissen.angelegt': 'hat einen Wissensartikel angelegt',
+  'wissen.geaendert': 'hat einen Wissensartikel geändert',
+  'wissen.archiviert': 'hat einen Wissensartikel archiviert',
+  'wissen.wiederhergestellt': 'hat einen Wissensartikel wiederhergestellt',
+  'wissen.aus_aufgabe': 'hat ein Ergebnis als Wissen gespeichert',
+  'bericht.tag': 'hat einen Tagesbericht erstellt',
+  'bericht.projekt': 'hat einen Projektbericht erstellt',
+  'sperre.gesetzt': 'hat Dateien gesperrt',
+  'sperre.freigegeben': 'hat eine Sperre gelöst',
+  'zugang.erstellt': 'hat einen KI-Zugang erstellt',
+  'zugang.widerrufen': 'hat einen KI-Zugang gesperrt',
+  'github.einrichtung_gestartet': 'hat die GitHub-Einrichtung gestartet',
+  'github.app_angelegt': 'GitHub-App angelegt',
+  'github.installiert': 'GitHub-App installiert',
+  'github.getrennt': 'hat GitHub getrennt',
+  'github.repo_zugeordnet': 'hat ein Repository zugeordnet',
+  'push.geraet_angemeldet': 'hat ein Gerät für Push angemeldet',
+  'push.geraet_abgemeldet': 'hat ein Gerät abgemeldet',
+  'benachrichtigungen.einstellungen': 'hat Benachrichtigungen eingestellt',
 };
 
 /** Link zum Objekt einer Aktivität (oder null). */
@@ -101,6 +120,8 @@ export function aktivitaetLink(a: Aktivitaet): string | null {
   if (a.objekt_typ === 'aufgabe' || (a.objekt_typ === 'nachricht' && a.objekt_id.startsWith('TD-'))) return `/aufgaben/${a.objekt_id}`;
   if (a.objekt_typ === 'freigabe' || a.objekt_typ === 'entscheidung') return '/freigaben';
   if (a.objekt_typ === 'mitarbeiter') return '/mitarbeiter';
+  if (a.objekt_typ === 'wissen') return `/wissen/${a.objekt_id}`;
+  if (a.objekt_typ === 'bericht') return `/berichte/${a.objekt_id}`;
   return null;
 }
 

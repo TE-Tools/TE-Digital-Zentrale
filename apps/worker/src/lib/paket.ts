@@ -23,6 +23,8 @@ export interface PaketDaten {
   entscheidungen: { id: string; stufe: number; titel: string }[];
   abhaengigkeiten: { id: string; titel: string; status: string }[];
   offeneRueckfragen: { von: string; inhalt: string }[];
+  /** Kurzfassungen relevanter Wissensartikel (Rolle, Projekt, Fachwissen) – Details per wissen_lesen */
+  wissen?: { id: number; titel: string; zusammenfassung: string }[];
 }
 
 export type PaketModus = 'voll' | 'fortsetzung';
@@ -101,6 +103,15 @@ export function erzeugePaket(d: PaketDaten, modus: PaketModus = 'voll', jetzt = 
     }
     if (d.entscheidungen.length) {
       teile.push(abschnitt('Relevante Entscheidungen', d.entscheidungen.map((e) => `- ${e.id} (Stufe ${e.stufe}): ${e.titel}`).join('\n')));
+    }
+    if (d.wissen?.length) {
+      teile.push(
+        abschnitt(
+          'Relevantes Wissen (Kurzfassung)',
+          d.wissen.map((w) => `- W${w.id} ${w.titel}: ${w.zusammenfassung}`).join('\n') +
+            '\nDetails: in der Zentrale unter Unternehmenswissen bzw. per MCP-Werkzeug wissen_lesen.',
+        ),
+      );
     }
     if (d.offeneRueckfragen.length) {
       teile.push(abschnitt('Antworten der Geschäftsführung auf Rückfragen', d.offeneRueckfragen.map((r) => `- ${r.inhalt}`).join('\n')));

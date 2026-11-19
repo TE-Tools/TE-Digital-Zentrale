@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { ApiFehler, validierungsFehler } from './fehler';
 
 /** Liest den JSON-Body und prüft ihn gegen ein Schema. */
@@ -37,4 +37,20 @@ export async function pruefeTeilnehmer(db: D1Database, ...ids: (string | null | 
   const da = new Set(r.results.map((x) => x.id));
   const fehlt = zuPruefen.filter((i) => !da.has(i));
   if (fehlt.length) throw new ApiFehler(400, 'unbekannter_teilnehmer', `Unbekannter Mitarbeiter: ${fehlt.join(', ')}`);
+}
+
+type OhneStandard<T> = T extends z.ZodDefault<infer I> ? I : T;
+
+/**
+ * Schema für Teil-Änderungen (PATCH): alle Felder optional und OHNE Standardwerte.
+ * Wichtig: Zod 4 setzt bei `.partial()` Standardwerte trotzdem ein – nicht mitgeschickte Felder
+ * würden dann still auf '' / null zurückgesetzt.
+ */
+export function teilAenderung<S extends z.ZodRawShape>(o: z.ZodObject<S>) {
+  const neu: Record<string, z.ZodType> = {};
+  for (const [k, v] of Object.entries(o.shape)) {
+    const ohne = v instanceof z.ZodDefault ? (v.unwrap() as z.ZodType) : (v as z.ZodType);
+    neu[k] = ohne.optional();
+  }
+  return z.object(neu) as unknown as z.ZodObject<{ [K in keyof S]: z.ZodOptional<OhneStandard<S[K]>> }>;
 }

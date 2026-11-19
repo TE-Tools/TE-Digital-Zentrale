@@ -2,7 +2,7 @@
 
 Zentrale Unternehmenssteuerung von TE-Digital als PWA: KI-Mitarbeiter, Projekte, Aufgaben, Freigaben und Unternehmenswissen. Grundlage sind das Pflichtenheft v1.0 und der freigegebene Plan in [docs/Bestandsaufnahme-und-Implementierungsplan.md](docs/Bestandsaufnahme-und-Implementierungsplan.md).
 
-**Stand:** Phase 5 (Entwicklungsintegration) – lokal lauffähig, noch nicht in Cloudflare angelegt. Repository: https://github.com/TE-Tools/TE-Digital-Zentrale
+**Stand:** Phase 6 (Wissen & Berichte) – lokal lauffähig, noch nicht in Cloudflare angelegt. Repository: https://github.com/TE-Tools/TE-Digital-Zentrale
 
 ## Aufbau
 
@@ -110,6 +110,31 @@ Der Worker stellt unter `/mcp` einen MCP-Server bereit (Streamable HTTP, zustand
 - **Sperren:** Sperren gelten exklusiv für Pfade oder Muster in einem Repository. Eine überlappende Sperre wird abgelehnt, und nichts wird automatisch übernommen. Endet eine Aufgabe (abgeschlossen oder abgebrochen), wird ihre Sperre frei.
 - **Konflikterkennung** unter *Entwicklung*: Sie meldet offene PRs, die dieselben Dateien ändern, und PRs, die Dateien einer fremden Sperre berühren.
 
+## Wissen, Kontext & Berichte (Phase 6)
+
+**Unternehmenswissen**
+- Wissen gibt es unternehmensweit und je Projekt, in Kategorien wie Organisation, Rolle, Arbeitsablauf, Anleitung, Architektur, Technik, Entscheidung und Zusammenfassung.
+- Inhalte sind Markdown. Jede Änderung wird als neue Version gespeichert. Ältere Versionen lassen sich ansehen. Statt zu löschen, wird archiviert.
+- **Startbestand** aus [`firma/`](firma/): Organisation, Entscheidungsstufen, Arbeitsablauf und 5 Rollen. Die Migration 0006 übernimmt ihn, erzeugt mit `node scripts/firma-zu-sql.mjs`.
+- **„Als Wissen speichern“** übernimmt das Ergebnis einer Aufgabe als Zusammenfassung ins Projektwissen.
+- **Rechte:** Firmenregeln, Rollen und Arbeitsabläufe ändert nur die Geschäftsführung. KI-Mitarbeiter pflegen per MCP (`wissen_suchen`, `wissen_lesen`, `wissen_speichern`) nur Fach- und Projektwissen in ihren freigegebenen Projekten.
+
+**Kontext- und Tokenmanagement (Pflichtenheft 11)**
+- Übergabepakete enthalten nur die **Kurzfassungen** der relevanten Artikel: die eigene Rolle, Projektwissen und übergreifendes Fachwissen. Das Budget liegt bei rund 1.800 Zeichen. Die Details holt sich der KI-Mitarbeiter bei Bedarf per `wissen_lesen`.
+- Fortsetzungspakete enthalten nur den letzten Zwischenstand, keine alten Verläufe.
+
+**Berichte**
+- **Tagesbericht:** wird automatisch aus den Daten der Zentrale erstellt, ohne KI. Er enthält, was auf die Geschäftsführung wartet, Erledigtes, Neues, Blockiertes, Wartendes und Limit-Pausen, Freigaben, Entscheidungen, Pull Requests, Projekte und KI-Mitarbeiter. Er wird einmal am Tag gespeichert und kommt zur eingestellten Uhrzeit als Push mit Link.
+- **Projektbericht:** auf Knopfdruck für 7, 30 oder 90 Tage.
+- **Aktivitätsprotokoll:** das komplette, unveränderliche Audit, gefiltert nach Bereich und Akteur.
+
+**Kostenwächter (Pflichtenheft 13)**
+- Misst stündlich die Tagesnutzung des **gesamten** Cloudflare-Kontos (alle TE-Apps) gegen die Free-Grenzen: Worker-Anfragen, D1 gelesene und geschriebene Zeilen, Durable Objects.
+- Warnt ab 80 % (wichtig) und ab 95 % (kritisch).
+- Ab 70 % Worker-Anfragen gilt der Sparmodus: Der GitHub-Abgleich setzt aus.
+- **Einrichtung:** `CF_ACCOUNT_ID` als Variable oder Secret, dazu `CF_ANALYTICS_TOKEN` als Secret mit einem API-Token, das nur „Account Analytics: Lesen“ darf. Ohne diese Angaben zeigt die Seite „nicht eingerichtet“.
+- Die Abfrage an Cloudflare (GraphQL) ist gegen eine Beispielantwort getestet. Gegen die echte API muss sie nach der Produktivsetzung einmal geprüft werden.
+
 ## Sicherheit (Phase 2)
 
 - Anmeldung nur per **Passkey** (WebAuthn, Benutzerverifikation Pflicht). Dazu 8 einmalige Wiederherstellungscodes, gespeichert als SHA-256.
@@ -125,6 +150,6 @@ Der Worker stellt unter `/mcp` einen MCP-Server bereit (Streamable HTTP, zustand
 
 1. `npx wrangler d1 create te-zentrale-db --jurisdiction eu` und die ID in `wrangler.jsonc` → `env.produktion` eintragen.
 2. `npx wrangler d1 migrations apply te-zentrale-db --remote --env produktion`
-3. `npx wrangler secret put EINRICHTUNGSCODE --env produktion` sowie `npx wrangler secret put ZENTRALE_SCHLUESSEL --env produktion` (32 zufällige Byte, base64url – Befehl in `apps/worker/.dev.vars.example`)
+3. Secrets setzen: `EINRICHTUNGSCODE`, `ZENTRALE_SCHLUESSEL` (32 zufällige Byte, base64url – Befehl in `apps/worker/.dev.vars.example`), optional `CF_ACCOUNT_ID` + `CF_ANALYTICS_TOKEN` (Kostenwächter), je mit `npx wrangler secret put <NAME> --env produktion`
 4. `npm run build` und danach `npx wrangler deploy --env produktion` im Ordner `apps/worker`. Die Custom Domain `zentrale.te-alltagshelfer.org` wird dabei angelegt.
 5. Die Zentrale öffnen, mit dem Einrichtungscode den Passkey anlegen und die Wiederherstellungscodes sichern.

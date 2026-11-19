@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { AppEnv } from '../env';
 import { hatInhalt, zerlegeAntwort } from '../lib/antwort';
 import { auditStatement } from '../lib/audit';
-import { body, naechsteId, pruefeTeilnehmer } from '../lib/eingabe';
+import { body, naechsteId, pruefeTeilnehmer, teilAenderung } from '../lib/eingabe';
 import { ApiFehler } from '../lib/fehler';
 import { erzeugePaket, pruefePaket, type PaketDaten } from '../lib/paket';
 import { gfPflicht, sitzungPflicht } from '../lib/sitzung';
@@ -11,6 +11,7 @@ import { agentVon, pruefeEigeneAufgabe, schreiberPflicht } from '../lib/agent';
 import { AUFGABEN_STATUS, istErlaubt, OFFEN, type AufgabenStatus } from '../lib/status';
 import { inMinuten, jetzt } from '../lib/zeit';
 import { meldenAusRoute } from './benachrichtigungen';
+import { wissenFuerKontext } from './wissen';
 
 const aufgaben = new Hono<AppEnv>();
 
@@ -47,7 +48,7 @@ const AenderungSchema = z.object({
   pruefstatus: z.enum(['offen', 'bestanden', 'abgelehnt', 'nicht_noetig']).optional(),
   branch: z.string().trim().max(200).nullable().optional(),
   pr_url: z.string().trim().max(300).regex(/^(https:\/\/.*)?$/, 'Nur https-Adressen').nullable().optional(),
-  uebergabe: UebergabeSchema.partial().optional(),
+  uebergabe: teilAenderung(UebergabeSchema).optional(),
 });
 
 interface AufgabeZeile {
@@ -383,6 +384,7 @@ aufgaben.get('/:id/paket', async (c) => {
     abhaengigkeiten: (abh?.results ?? []) as PaketDaten['abhaengigkeiten'],
     offeneRueckfragen: ((rf?.results ?? []) as PaketDaten['offeneRueckfragen']).reverse(),
   };
+  if (modus === 'voll') daten.wissen = await wissenFuerKontext(db, z.projekt_slug!, z.zustaendig_id ?? null);
   const paket = erzeugePaket(daten, modus);
   return c.json({ modus, text: paket, zeichen: paket.length, warnungen: pruefePaket(paket) });
 });

@@ -158,8 +158,9 @@ describe('Cron', () => {
     expect(b.berichte).toBe(0);
     const n = await anfrage('/api/benachrichtigungen', { cookie });
     const bericht = n.body.benachrichtigungen.find((x: { kategorie: string }) => x.kategorie === 'tagesbericht');
-    expect(bericht.titel).toBe('Tagesbericht TE-Digital');
+    expect(bericht.titel).toMatch(/^Tagesbericht \d{2}\.\d{2}\.\d{4}$/);
     expect(bericht.text).toContain('erledigt');
+    expect(bericht.url).toMatch(/^\/berichte\/\d+$/);
   });
 });
 

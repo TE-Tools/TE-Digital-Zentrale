@@ -202,6 +202,46 @@ const WERKZEUGE: Werkzeug[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'wissen_suchen',
+    title: 'Unternehmenswissen durchsuchen',
+    description: 'Sucht im Unternehmens- und Projektwissen (Titel, Kurzfassung, Inhalt, Stichworte). Liefert Nummer, Titel und Kurzfassung.',
+    inputSchema: {
+      type: 'object',
+      properties: { suche: { type: 'string', minLength: 2, maxLength: 80 }, projekt: { type: 'string' } },
+      required: ['suche'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'wissen_lesen',
+    title: 'Wissensartikel lesen',
+    description: 'Liefert einen Wissensartikel vollständig (Nummer z. B. aus dem Übergabepaket: W12 → 12).',
+    inputSchema: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'], additionalProperties: false },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'wissen_speichern',
+    title: 'Wissen festhalten',
+    description:
+      'Legt einen Wissensartikel an oder aktualisiert ihn (mit id). Für Projektwissen, Anleitungen, technische Zusammenfassungen und Architekturentscheidungen. ' +
+      'Die Kurzfassung (max. 500 Zeichen) fließt in künftige Übergabepakete ein. Firmenregeln und Rollen ändert nur die Geschäftsführung.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer' },
+        titel: { type: 'string', minLength: 3, maxLength: 160 },
+        kategorie: { type: 'string', enum: ['anleitung', 'architektur', 'technik', 'entscheidung', 'zusammenfassung', 'sonstiges'] },
+        projekt: { type: 'string', description: 'Projekt-Kürzel; leer = unternehmensweit' },
+        zusammenfassung: { type: 'string', maxLength: 500 },
+        inhalt: { type: 'string', maxLength: 60000 },
+        tags: { type: 'string', maxLength: 200 },
+      },
+      required: ['titel', 'zusammenfassung', 'inhalt'],
+      additionalProperties: false,
+    },
+  },
 ];
 
 // ------------------------------------------------------------------ Hilfen
@@ -500,6 +540,37 @@ async function werkzeugAusfuehren(
         projekt_slug: str(args.projekt) || null,
       });
       return text(`Entscheidung ${r.id} dokumentiert.`, r);
+    }
+    case 'wissen_suchen': {
+      const q = new URLSearchParams({ suche: str(args.suche) });
+      if (str(args.projekt)) q.set('projekt', str(args.projekt));
+      const r = await api<{ wissen: { id: number; titel: string; zusammenfassung: string; projekt_slug: string | null }[] }>('GET', `/api/wissen?${q}`);
+      if (!r.wissen.length) return text('Nichts gefunden.');
+      return text(r.wissen.slice(0, 15).map((w) => `- W${w.id} ${w.titel}${w.projekt_slug ? ` (${w.projekt_slug})` : ''}: ${w.zusammenfassung}`).join('\n'));
+    }
+    case 'wissen_lesen': {
+      const r = await api<{ wissen: { id: number; titel: string; inhalt: string; version: number; aktualisiert_am: string } }>('GET', `/api/wissen/${Number(args.id)}`);
+      return text(`# W${r.wissen.id} ${r.wissen.titel} (Version ${r.wissen.version}, ${r.wissen.aktualisiert_am.slice(0, 10)})\n\n${r.wissen.inhalt}`);
+    }
+    case 'wissen_speichern': {
+      const felder = {
+        titel: str(args.titel),
+        zusammenfassung: str(args.zusammenfassung),
+        inhalt: str(args.inhalt),
+        ...(args.kategorie ? { kategorie: str(args.kategorie) } : {}),
+        ...(args.tags !== undefined ? { tags: str(args.tags) } : {}),
+      };
+      if (args.id !== undefined) {
+        const alt = await api<{ wissen: { version: number } }>('GET', `/api/wissen/${Number(args.id)}`);
+        const r = await api<{ version: number }>('PATCH', `/api/wissen/${Number(args.id)}`, { ...felder, version: alt.wissen.version });
+        return text(`W${Number(args.id)} aktualisiert (Version ${r.version}).`);
+      }
+      const r = await api<{ id: number }>('POST', '/api/wissen', {
+        kategorie: 'technik',
+        ...felder,
+        projekt_slug: str(args.projekt) || null,
+      });
+      return text(`Wissensartikel W${r.id} angelegt.`);
     }
   }
   throw new WerkzeugFehler('Unbekanntes Werkzeug.');

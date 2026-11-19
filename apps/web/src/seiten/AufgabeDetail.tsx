@@ -18,7 +18,8 @@ import {
 import { Fragment } from 'preact';
 import { useRef } from 'preact/hooks';
 import { Diktat } from '../komponenten/Diktat';
-import { GitBranch, GitPullRequest, Lock } from 'lucide-preact';
+import { BookOpen, GitBranch, GitPullRequest, Lock } from 'lucide-preact';
+import { navigiere } from '../lib/router';
 import { branchVorschlag, CHECKS, PR_ZUSTAND } from '../lib/entwicklung';
 import { Karte, Ladebalken, Pill } from '../komponenten/Bausteine';
 import { Dialog } from '../komponenten/Dialog';
@@ -177,6 +178,21 @@ export function AufgabeDetail({ id, benutzer }: { id: string; benutzer: Benutzer
         {gf && !beendet && <ErgebnisEinfuegen id={id} fertig={neuLaden} />}
         <Karte titel="Ergebnis" kicker="Aktueller Stand">
           {a.ergebnis ? <p class="textblock">{a.ergebnis}</p> : <p class="textblock leer">Noch kein Ergebnis zurückgeführt.</p>}
+          {gf && a.ergebnis && (
+            <button
+              class="btn btn-ghost btn-sm"
+              style={{ marginTop: 12 }}
+              disabled={laeuft}
+              onClick={() =>
+                aktion(async () => {
+                  const r = await api.post<{ id: number }>(`/wissen/aus-aufgabe/${id}`, {});
+                  navigiere(`/wissen/${r.id}`);
+                }, 'Als Wissen gespeichert')
+              }
+            >
+              <BookOpen size={15} aria-hidden="true" /> Als Wissen speichern
+            </button>
+          )}
         </Karte>
         <Verlauf daten={daten} mitarbeiter={mitarbeiter} gf={gf} neuLaden={neuLaden} />
       </div>

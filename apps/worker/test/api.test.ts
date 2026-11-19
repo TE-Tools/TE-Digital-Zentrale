@@ -160,6 +160,22 @@ describe('Projekte', () => {
     expect(alt.body.fehler.code).toBe('veraltet');
   });
 
+  it('Teil-Änderung lässt nicht mitgeschickte Felder unverändert (Regression Zod-Standardwerte)', async () => {
+    const cookie = await devAnmelden();
+    const vorher = (await anfrage('/api/projekte/familienplaner', { cookie })).body.projekt;
+    expect(vorher.beschreibung.length).toBeGreaterThan(10);
+    await anfrage('/api/projekte/familienplaner', { methode: 'PATCH', cookie, body: { kurz: 'Nur Kurztext', version: vorher.version } });
+    const nachher = (await anfrage('/api/projekte/familienplaner', { cookie })).body.projekt;
+    expect(nachher).toMatchObject({
+      kurz: 'Nur Kurztext',
+      beschreibung: vorher.beschreibung,
+      repo_url: vorher.repo_url,
+      farbe: vorher.farbe,
+      status: vorher.status,
+      sortierung: vorher.sortierung,
+    });
+  });
+
   it('Audit-Protokoll ist unveränderlich', async () => {
     await expect(env.DB.prepare('DELETE FROM aktivitaeten').run()).rejects.toThrow(/unveränderlich/);
     await expect(env.DB.prepare("UPDATE aktivitaeten SET aktion = 'x'").run()).rejects.toThrow(/unveränderlich/);

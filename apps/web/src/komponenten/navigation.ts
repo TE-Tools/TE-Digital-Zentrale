@@ -30,8 +30,8 @@ export const BEREICHE: NavEintrag[] = [
   { pfad: '/entwicklung', text: 'Entwicklung', Icon: GitBranch },
   { pfad: '/kommunikation', text: 'Kommunikation', Icon: MessagesSquare },
   { pfad: '/freigaben', text: 'Entscheidungen & Freigaben', Icon: ShieldCheck },
-  { pfad: '/wissen', text: 'Unternehmenswissen', Icon: BookOpen, phase: 6 },
-  { pfad: '/berichte', text: 'Berichte', Icon: FileText, phase: 6 },
+  { pfad: '/wissen', text: 'Unternehmenswissen', Icon: BookOpen },
+  { pfad: '/berichte', text: 'Berichte', Icon: FileText },
   { pfad: '/benachrichtigungen', text: 'Benachrichtigungen', Icon: Bell },
   { pfad: '/einstellungen', text: 'Einstellungen & Verwaltung', Icon: Settings },
 ];

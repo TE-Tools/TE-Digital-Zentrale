@@ -21,6 +21,8 @@ export default defineConfig({
           ZENTRALE_SCHLUESSEL: '',
           VAPID_PUBLIC_KEY: '',
           VAPID_PRIVATE_KEY: '',
+          CF_ACCOUNT_ID: '',
+          CF_ANALYTICS_TOKEN: '',
         },
       },
     })),

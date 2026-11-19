@@ -9,6 +9,8 @@ import { anGeraeteSenden, basisUrl, einstellungenLaden, melden } from './lib/mel
 import { berlin, inRuhezeit, jetzt } from './lib/zeit';
 import { liveSenden } from './live';
 import { abgleichen, verbindungLaden } from './lib/github';
+import { kurztext, tagesberichtSpeichern } from './lib/berichte';
+import { eingerichtet as kostenEingerichtet, GRENZEN, messen, sparmodusAktiv, warnstufe } from './lib/kosten';
 
 export async function cronAusfuehren(env: Env, jetztDatum: Date = new Date()): Promise<{ limits: number; versendet: number; berichte: number }> {
   const basis = basisUrl(env);
@@ -79,17 +81,20 @@ export async function cronAusfuehren(env: Env, jetztDatum: Date = new Date()): P
 
     // 3 – Tagesbericht
     if (e.tagesbericht && zeit.hhmm >= e.tagesbericht_zeit && e.letzter_tagesbericht !== zeit.datum) {
-      const bericht = await tagesbericht(env, jetztDatum);
+      // Ausführlicher Bericht wird gespeichert (einmal je Tag), die Push-Meldung verlinkt darauf
+      const berichtId = await tagesberichtSpeichern(env, jetztDatum);
+      const gespeichert = await env.DB.prepare('SELECT titel, kennzahlen FROM berichte WHERE id = ?').bind(berichtId).first<{ titel: string; kennzahlen: string }>();
+      const bericht = { titel: gespeichert!.titel, text: kurztext(JSON.parse(gespeichert!.kennzahlen)), url: `/berichte/${berichtId}` };
       await env.DB.batch([
         env.DB.prepare(
           `INSERT INTO benachrichtigungs_einstellungen (benutzer_id, letzter_tagesbericht) VALUES (?, ?)
            ON CONFLICT(benutzer_id) DO UPDATE SET letzter_tagesbericht = excluded.letzter_tagesbericht`,
         ).bind(id, zeit.datum),
         env.DB.prepare(
-          `INSERT OR IGNORE INTO benachrichtigungen (benutzer_id, kategorie, titel, text, url, schluessel, push_status) VALUES (?, 'tagesbericht', ?, ?, '/', ?, 'offen') `,
-        ).bind(id, bericht.titel, bericht.text, `tagesbericht:${zeit.datum}`),
+          `INSERT OR IGNORE INTO benachrichtigungen (benutzer_id, kategorie, titel, text, url, schluessel, push_status) VALUES (?, 'tagesbericht', ?, ?, ?, ?, 'offen') `,
+        ).bind(id, bericht.titel, bericht.text, bericht.url, `tagesbericht:${zeit.datum}`),
       ]);
-      const zugestellt = await anGeraeteSenden(env, id, { kategorie: 'tagesbericht', titel: bericht.titel, text: bericht.text, url: '/', tag: 'tagesbericht' }, basis);
+      const zugestellt = await anGeraeteSenden(env, id, { kategorie: 'tagesbericht', titel: bericht.titel, text: bericht.text, url: bericht.url, tag: 'tagesbericht' }, basis);
       await env.DB.prepare(`UPDATE benachrichtigungen SET push_status = ?, gesendet_am = ? WHERE benutzer_id = ? AND schluessel = ?`)
         .bind(zugestellt ? 'gesendet' : 'kein_geraet', jetzt(), id, `tagesbericht:${zeit.datum}`)
         .run();
@@ -97,10 +102,36 @@ export async function cronAusfuehren(env: Env, jetztDatum: Date = new Date()): P
     }
   }
 
-  // 4 – GitHub-Abgleich einmal pro Stunde (Webhooks halten den Rest aktuell)
+  // 4 – stündlich: Kostenwächter, dann GitHub-Abgleich (im Sparmodus ausgesetzt)
   if (zeit.minute < 15) {
+    if (kostenEingerichtet(env)) {
+      try {
+        const messungen = await messen(env, jetztDatum);
+        for (const m of messungen) {
+          const stufe = warnstufe(m);
+          if (stufe === 'ok') continue;
+          const g = GRENZEN.find((x) => x.dienst === m.dienst && x.metrik === m.metrik)!;
+          await (await melden(
+            env,
+            {
+              kategorie: stufe,
+              titel: `Free-Tarif: ${g.text} bei ${Math.round((m.wert / m.grenze) * 100)} %`,
+              text: `${m.wert.toLocaleString('de-DE')} von ${m.grenze.toLocaleString('de-DE')} (Cloudflare-Konto, alle TE-Apps). Bei 100 % schlagen Anfragen bis 01:00 Uhr fehl – es entstehen keine Kosten. Ein Wechsel auf Workers Paid wäre eine Stufe-3-Freigabe.`,
+              url: '/berichte?ansicht=kosten',
+              schluessel: `kosten:${jetztDatum.toISOString().slice(0, 10)}:${m.dienst}.${m.metrik}:${stufe}`,
+            },
+            null,
+            basis,
+          )).versand;
+        }
+      } catch (e) {
+        console.error('Kostenwächter', e);
+      }
+    }
     const v = await verbindungLaden(env);
-    if (v.status === 'installiert') await abgleichen(env).catch((e) => console.error('GitHub-Abgleich', e));
+    if (v.status === 'installiert' && !(await sparmodusAktiv(env, jetztDatum))) {
+      await abgleichen(env).catch((e) => console.error('GitHub-Abgleich', e));
+    }
   }
 
   if (stats.limits || stats.berichte) await liveSenden(env, { art: 'geaendert', quelle: 'cron' });

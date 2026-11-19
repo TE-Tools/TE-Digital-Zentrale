@@ -9,6 +9,9 @@ import entwicklung from './routes/entwicklung';
 import github from './routes/github';
 import sperren from './routes/sperren';
 import zugaenge from './routes/zugaenge';
+import wissen from './routes/wissen';
+import berichte from './routes/berichte';
+import kosten from './routes/kosten';
 import { agentLaden } from './lib/agent';
 import { mcpBehandeln } from './mcp';
 import aufgaben from './routes/aufgaben';
@@ -71,6 +74,9 @@ const AGENT_WEGE: [string, RegExp][] = [
   ['POST', /^\/api\/aufgaben\/TD-\d{4,}\/(ergebnis|checkpoint|limit)$/],
   ['POST', /^\/api\/(nachrichten|freigaben|entscheidungen|sperren)$/],
   ['POST', /^\/api\/sperren\/\d+\/freigeben$/],
+  ['GET', /^\/api\/wissen(\/\d+)?$/],
+  ['POST', /^\/api\/wissen$/],
+  ['PATCH', /^\/api\/wissen\/\d+$/],
 ];
 app.use('/api/*', async (c, next) => {
   if (c.get('agent') && !AGENT_WEGE.some(([m, re]) => m === c.req.method && re.test(c.req.path))) {
@@ -116,6 +122,9 @@ app.route('/api/sperren', sperren);
 app.route('/api/zugaenge', zugaenge);
 app.route('/api/github', github);
 app.route('/api/entwicklung', entwicklung);
+app.route('/api/wissen', wissen);
+app.route('/api/berichte', berichte);
+app.route('/api/kosten', kosten);
 
 /** MCP-Server für Claude Code / Claude.ai (eigene Token-Authentifizierung, siehe mcp.ts) */
 app.all('/mcp', (c) => mcpBehandeln(c.req.raw, c.env, c.executionCtx as unknown as ExecutionContext, app));

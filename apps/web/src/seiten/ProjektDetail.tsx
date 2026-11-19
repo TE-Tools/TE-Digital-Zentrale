@@ -2,6 +2,8 @@ import { useState } from 'preact/hooks';
 import { AlertTriangle, ArrowLeft, ExternalLink, GitBranch, ListChecks, Pencil, ShieldCheck, Target } from 'lucide-preact';
 import { Karte, Kennzahl, Ladebalken, Leer, Pill } from '../komponenten/Bausteine';
 import { useDaten } from '../lib/daten';
+import { api } from '../lib/api';
+import { navigiere } from '../lib/router';
 import { aktivitaetText, datum, relativeZeit } from '../lib/format';
 import { useKopf } from '../lib/kopf';
 import type { Aktivitaet, AufgabeKurz, Benutzer, Projekt } from '../lib/typen';
@@ -104,8 +106,11 @@ export function ProjektDetail({ slug, benutzer, geaendert }: { slug: string; ben
               )}
             </Karte>
           </div>
-          <div class="sp-12">
+          <div class="sp-8">
             <ProjektAufgaben slug={p.slug} gf={benutzer.rolle === 'gf'} />
+          </div>
+          <div class="sp-4">
+            <ProjektWissen slug={p.slug} gf={benutzer.rolle === 'gf'} />
           </div>
         </>
       )}
@@ -129,6 +134,42 @@ function ProjektAufgaben({ slug, gf }: { slug: string; gf: boolean }) {
         <Leer Icon={ListChecks} titel={gruppe === 'offen' ? 'Keine offenen Aufgaben' : 'Noch nichts erledigt'} />
       ) : (
         <AufgabenListe aufgaben={r.daten.aufgaben} ohneProjekt />
+      )}
+    </Karte>
+  );
+}
+
+function ProjektWissen({ slug, gf }: { slug: string; gf: boolean }) {
+  const r = useDaten<{ wissen: { id: number; titel: string; zusammenfassung: string; kategorie: string; aktualisiert_am: string }[] }>(`/wissen?projekt=${slug}`, 0);
+  const [laeuft, setLaeuft] = useState(false);
+  async function bericht() {
+    setLaeuft(true);
+    try {
+      const b = await api.post<{ id: number }>('/berichte/projekt', { projekt_slug: slug, tage: 30 });
+      navigiere(`/berichte/${b.id}`);
+    } finally {
+      setLaeuft(false);
+    }
+  }
+  return (
+    <Karte titel="Projektwissen" kicker="Dokumentation" mehr={{ text: 'Alle Artikel', href: `/wissen?projekt=${slug}` }}>
+      {!r.daten ? <Ladebalken /> : r.daten.wissen.length === 0 ? (
+        <p class="textblock leer">Noch keine Artikel. Architektur, Anleitungen und Ergebnisse hier festhalten – die Kurzfassungen fließen in die Übergabepakete ein.</p>
+      ) : (
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
+          {r.daten.wissen.slice(0, 6).map((w) => (
+            <li key={w.id}>
+              <a href={`/wissen/${w.id}`} style={{ fontWeight: 600, color: 'var(--ink)' }}>{w.titel}</a>
+              <div class="zeitstempel">{w.zusammenfassung.slice(0, 120)}{w.zusammenfassung.length > 120 ? ' …' : ''}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {gf && (
+        <div class="reihe" style={{ marginTop: 12 }}>
+          <a class="btn btn-ghost btn-sm" href={`/wissen/neu?projekt=${slug}`}>+ Artikel</a>
+          <button class="btn btn-ghost btn-sm" disabled={laeuft} onClick={bericht}>Projektbericht (30 Tage)</button>
+        </div>
       )}
     </Karte>
   );
