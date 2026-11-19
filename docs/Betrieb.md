@@ -1,5 +1,19 @@
 # Betriebshandbuch – TE-Digital Zentrale
 
+## Stand der Einrichtung (19.11.2026)
+
+- ✅ D1-Datenbank `te-zentrale-db` im Dashboard angelegt, Hoheitsgebiet **Europäische Union**, ID in `wrangler.jsonc` eingetragen.
+- ✅ Zone `te-alltagshelfer.org` liegt im Konto → `zentrale.te-alltagshelfer.org` wird beim ersten Deploy automatisch angelegt.
+- ℹ️ `wrangler login` ist im Firmennetz nicht möglich (TLS-Prüfung des Netzes). Veröffentlicht wird deshalb über **GitHub Actions** (Workflow „Produktivsetzung“); der Workflow setzt die Server-Secrets selbst. Lokal ginge es alternativ außerhalb des Firmennetzes (z. B. Handy-Hotspot).
+- ⬜ Geschäftsführung: API-Token erstellen und die Secrets in GitHub eintragen (siehe unten, „Kurzfassung GitHub-Weg“).
+
+### Kurzfassung GitHub-Weg
+
+1. Cloudflare → *Mein Profil → API-Token → Token erstellen → „Eigenes Token“* mit: Konto · **Workers-Skripts: Bearbeiten**, Konto · **D1: Bearbeiten**, Konto · **Kontoeinstellungen: Lesen**, Zone `te-alltagshelfer.org` · **Workers-Routen: Bearbeiten**, Zone · **DNS: Bearbeiten**, Zone · **Zone: Lesen**. Optional zweites Token nur **Konto-Analysen: Lesen** für den Kostenwächter.
+2. GitHub → Repository → *Settings → Environments → produktion → Environment secrets*: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (= `562079303f8e0ed15ed58f0d7d50610e`), `SICHERUNG_PASSWORT` (langer Zufallswert, offline aufbewahren), `EINRICHTUNGSCODE` (selbst gewählt, für die Ersteinrichtung), optional `CF_ANALYTICS_TOKEN`. Für die nächtliche Sicherung dieselben drei Cloudflare-/Sicherungswerte zusätzlich als *Repository secrets*.
+3. *Actions → Produktivsetzung → Run workflow*: „veröffentlichen“ eingeben, **Erste Veröffentlichung** ankreuzen, in der Umgebung freigeben.
+4. `https://zentrale.te-alltagshelfer.org` öffnen → Einrichtungscode → Passkey → Wiederherstellungscodes sichern.
+
 ## Erstmalige Produktivsetzung (Stufe 3 – Geschäftsführung)
 
 Alles, was ein Konto, Kosten oder Veröffentlichung betrifft, führt die Geschäftsführung selbst aus. Claude Code bereitet vor und prüft.

@@ -48,8 +48,8 @@
   "triggers": { "crons": ["*/15 * * * *"] },
 
   // Produktion: npx wrangler deploy --env produktion
-  // Vorher (Stufe-3-Freigabe!): D1 in der EU anlegen und ID eintragen:
-  //   npx wrangler d1 create te-zentrale-db --jurisdiction eu
+  // D1 „te-zentrale-db“ am 19.11.2026 im Dashboard mit Hoheitsgebiet EU angelegt.
+  // Veröffentlicht wird über GitHub Actions (Workflow „Produktivsetzung“), siehe docs/Betrieb.md.
   //   npx wrangler d1 migrations apply te-zentrale-db --remote --env produktion
   //   npx wrangler secret put EINRICHTUNGSCODE --env produktion
   //   optional: node scripts/vapid.mjs → VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY als Secrets
@@ -71,14 +71,16 @@
         {
           "binding": "DB",
           "database_name": "te-zentrale-db",
-          "database_id": "NACH-ANLAGE-EINTRAGEN",
+          "database_id": "c6a33e9c-11a0-40cf-a494-4396fae50036",
           "migrations_dir": "migrations"
         }
       ],
       "vars": {
         "RP_NAME": "TE-Digital Zentrale",
         "RP_ID": "zentrale.te-alltagshelfer.org",
-        "ERLAUBTE_ORIGINS": "https://zentrale.te-alltagshelfer.org"
+        "ERLAUBTE_ORIGINS": "https://zentrale.te-alltagshelfer.org",
+        // Kostenwächter: Konto-ID ist kein Geheimnis; das Token CF_ANALYTICS_TOKEN kommt als Secret
+        "CF_ACCOUNT_ID": "562079303f8e0ed15ed58f0d7d50610e"
       }
     }
   }

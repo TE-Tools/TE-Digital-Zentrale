@@ -1,9 +1,11 @@
 name: Produktivsetzung
 
 # Veröffentlichung ist Stufe 3: nur manuell durch die Geschäftsführung (Actions → Produktivsetzung → Run workflow)
-# und zusätzlich über die GitHub-Umgebung „produktion“ mit Pflicht-Freigabe (Settings → Environments →
-# produktion → Required reviewers). Ablauf: prüfen → Sicherung → Migrationen → Deploy → Rauchtest.
-# Benötigte Secrets (Umgebung „produktion“): CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, SICHERUNG_PASSWORT
+# und zusätzlich über die GitHub-Umgebung „produktion“ mit Pflicht-Freigabe.
+# Ablauf: prüfen → Sicherung → Migrationen → Deploy → Server-Secrets → Rauchtest.
+# Läuft auf GitHub (nicht im Firmennetz). Secrets der Umgebung „produktion“:
+#   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, SICHERUNG_PASSWORT, EINRICHTUNGSCODE
+#   optional: CF_ANALYTICS_TOKEN (Kostenwächter)
 
 on:
   workflow_dispatch:
@@ -11,6 +13,10 @@ on:
       bestaetigung:
         description: 'Zur Bestätigung „veröffentlichen“ eingeben'
         required: true
+      erstinstallation:
+        description: 'Erste Veröffentlichung (noch keine Daten zu sichern)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -48,16 +54,25 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      - name: Zugang zu Cloudflare prüfen
+        working-directory: apps/worker
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Secret CLOUDFLARE_API_TOKEN fehlt (Umgebung produktion)"; exit 1; }
+          npx wrangler whoami
+
       - name: Sicherung vor der Änderung
+        if: ${{ !inputs.erstinstallation }}
         working-directory: apps/worker
         env:
           SICHERUNG_PASSWORT: ${{ secrets.SICHERUNG_PASSWORT }}
         run: |
+          test -n "$SICHERUNG_PASSWORT" || { echo "Secret SICHERUNG_PASSWORT fehlt"; exit 1; }
           npx wrangler d1 export te-zentrale-db --remote --env produktion --output "$RUNNER_TEMP/vorher.sql"
           gzip -9 "$RUNNER_TEMP/vorher.sql"
           openssl enc -aes-256-cbc -pbkdf2 -iter 250000 -salt -in "$RUNNER_TEMP/vorher.sql.gz" -out "$RUNNER_TEMP/vor-deploy.sql.gz.enc" -pass env:SICHERUNG_PASSWORT
           rm -f "$RUNNER_TEMP/vorher.sql.gz"
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.erstinstallation }}
         with:
           name: sicherung-vor-deploy-${{ github.run_id }}
           path: ${{ runner.temp }}/vor-deploy.sql.gz.enc
@@ -71,12 +86,32 @@ jobs:
         working-directory: apps/worker
         run: npx wrangler deploy --env produktion
 
+      - name: Server-Secrets setzen
+        working-directory: apps/worker
+        env:
+          EINRICHTUNGSCODE: ${{ secrets.EINRICHTUNGSCODE }}
+          CF_ANALYTICS_TOKEN: ${{ secrets.CF_ANALYTICS_TOKEN }}
+        run: |
+          vorhanden="$(npx wrangler secret list --env produktion 2>/dev/null || true)"
+          # Schlüssel für gespeicherte GitHub-Geheimnisse: einmalig zufällig erzeugen, nie ersetzen
+          if ! echo "$vorhanden" | grep -q '"ZENTRALE_SCHLUESSEL"'; then
+            node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put ZENTRALE_SCHLUESSEL --env produktion
+          fi
+          if [ -n "$EINRICHTUNGSCODE" ]; then
+            printf '%s' "$EINRICHTUNGSCODE" | npx wrangler secret put EINRICHTUNGSCODE --env produktion
+          else
+            echo "Hinweis: Secret EINRICHTUNGSCODE fehlt – Ersteinrichtung des Zugangs nicht möglich"
+          fi
+          if [ -n "$CF_ANALYTICS_TOKEN" ]; then
+            printf '%s' "$CF_ANALYTICS_TOKEN" | npx wrangler secret put CF_ANALYTICS_TOKEN --env produktion
+          fi
+
       - name: Rauchtest
         run: |
-          for i in 1 2 3 4 5; do
+          for i in $(seq 1 12); do
             if curl -fsS https://zentrale.te-alltagshelfer.org/api/gesundheit | grep -q '"ok":true'; then
               curl -fsSI https://zentrale.te-alltagshelfer.org/ | grep -qi 'content-security-policy' && echo "✓ Zentrale erreichbar, Sicherheits-Header aktiv" && exit 0
             fi
-            sleep 10
+            sleep 15
           done
-          echo "✗ Rauchtest fehlgeschlagen"; exit 1
+          echo "✗ Rauchtest fehlgeschlagen (neue Domains brauchen manchmal einige Minuten für das Zertifikat)"; exit 1
