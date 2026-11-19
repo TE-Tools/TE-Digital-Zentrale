@@ -7,7 +7,7 @@ describe('Grundfunktionen & Sicherheit', () => {
   it('liefert Gesundheitsstatus mit Sicherheits-Headern', async () => {
     const r = await anfrage('/api/gesundheit');
     expect(r.status).toBe(200);
-    expect(r.body).toEqual({ ok: true, dienst: 'te-zentrale' });
+    expect(r.body).toEqual({ ok: true, dienst: 'te-zentrale', takt: true });
     expect(r.headers.get('x-content-type-options')).toBe('nosniff');
     expect(r.headers.get('x-frame-options')).toBe('DENY');
     expect(r.headers.get('cache-control')).toBe('no-store');

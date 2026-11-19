@@ -7,16 +7,47 @@
  */
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './env';
+import { cronAusfuehren } from './cron';
 
+/** Takt der zeitgesteuerten Aufgaben (wie bisher „*\/15 * * * *“). */
+export const TAKT_MS = 15 * 60 * 1000;
+
+/** Nächster Viertelstunden-Zeitpunkt nach `ab` (00, 15, 30, 45). */
+export function naechsterTakt(ab: number): number {
+  return Math.floor(ab / TAKT_MS) * TAKT_MS + TAKT_MS;
+}
+
+/**
+ * Zusätzlich übernimmt das Objekt den Takt der zeitgesteuerten Aufgaben per Alarm:
+ * Der Free-Tarif erlaubt nur 5 Cron-Trigger je Konto (bereits durch andere TE-Apps belegt),
+ * Durable-Object-Alarme zählen dort nicht mit und sind kostenlos.
+ */
 export class ZentraleLive extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     // Ping/Pong ohne das Objekt aufzuwecken
     this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
+    // Takt sicherstellen, sobald das Objekt irgendwann geweckt wird (Alarme überdauern Deploys)
+    this.ctx.blockConcurrencyWhile(() => this.taktSichern());
+  }
+
+  private async taktSichern(): Promise<void> {
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(naechsterTakt(Date.now()));
+  }
+
+  override async alarm(): Promise<void> {
+    // Zuerst neu planen – fällt ein Lauf aus, läuft der Takt trotzdem weiter
+    await this.ctx.storage.setAlarm(naechsterTakt(Date.now()));
+    const stats = await cronAusfuehren(this.env);
+    console.log('Takt', JSON.stringify(stats));
   }
 
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === '/takt') {
+      await this.taktSichern();
+      return Response.json({ naechster: new Date((await this.ctx.storage.getAlarm()) ?? 0).toISOString() });
+    }
     if (url.pathname === '/senden' && request.method === 'POST') {
       const text = await request.text();
       for (const ws of this.ctx.getWebSockets()) {

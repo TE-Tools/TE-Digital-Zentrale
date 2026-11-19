@@ -5,6 +5,8 @@
 - ✅ D1-Datenbank `te-zentrale-db` im Dashboard angelegt, Hoheitsgebiet **Europäische Union**, ID in `wrangler.jsonc` eingetragen.
 - ✅ Zone `te-alltagshelfer.org` liegt im Konto → `zentrale.te-alltagshelfer.org` wird beim ersten Deploy automatisch angelegt.
 - ℹ️ `wrangler login` ist im Firmennetz nicht möglich (TLS-Prüfung des Netzes). Veröffentlicht wird deshalb über **GitHub Actions** (Workflow „Produktivsetzung“); der Workflow setzt die Server-Secrets selbst. Lokal ginge es alternativ außerhalb des Firmennetzes (z. B. Handy-Hotspot).
+- ℹ️ Kein Cron-Trigger: Der Free-Tarif erlaubt 5 Cron-Trigger **je Konto**, die sind durch die anderen TE-Apps belegt. Der 15-Minuten-Takt (Limit-Pausen, zurückgestellte Meldungen, Tagesbericht, Kostenwächter) läuft deshalb als Durable-Object-Alarm in `ZentraleLive`. `/api/gesundheit` meldet `"takt": true`, wenn der Alarm geplant ist (wird beim Rauchtest automatisch gestartet).
+- ✅ API-Token „TE-Zentrale GitHub-Deploy“ (Konto + Zone `te-alltagshelfer.org`) erstellt.
 - ⬜ Geschäftsführung: API-Token erstellen und die Secrets in GitHub eintragen (siehe unten, „Kurzfassung GitHub-Weg“).
 
 ### Kurzfassung GitHub-Weg

@@ -123,7 +123,16 @@ app.get('/api/live', async (c) => {
   return liveStub(c.env).fetch(c.req.raw);
 });
 
-app.get('/api/gesundheit', (c) => c.json({ ok: true, dienst: 'te-zentrale' }));
+app.get('/api/gesundheit', async (c) => {
+  // Weckt bei Bedarf den Takt (Durable-Object-Alarm statt Cron); der Rauchtest nach jedem Deploy ruft das auf.
+  let takt = false;
+  try {
+    takt = (await liveStub(c.env).fetch('https://live/takt')).ok;
+  } catch (e) {
+    console.error('Takt nicht erreichbar', e);
+  }
+  return c.json({ ok: true, dienst: 'te-zentrale', takt });
+});
 app.route('/api/auth', auth);
 app.route('/api/dashboard', dashboard);
 app.route('/api/projekte', projekte);
@@ -163,6 +172,7 @@ export { ZentraleLive };
 
 export default {
   fetch: app.fetch,
+  // Nur noch für manuelle Auslösung (lokal: wrangler dev --test-scheduled); im Betrieb taktet der Alarm in ZentraleLive.
   async scheduled(_ctrl, env, ctx) {
     ctx.waitUntil(cronAusfuehren(env).then((s) => console.log('Cron', JSON.stringify(s))));
   },
