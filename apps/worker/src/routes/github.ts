@@ -29,6 +29,27 @@ function organisation(env: AppEnv['Bindings']): string {
   return env.GITHUB_ORGANISATION || 'TE-Tools';
 }
 
+/**
+ * Zieladresse für das App-Manifest. „TE-Tools“ ist ein Benutzerkonto (keine Organisation):
+ * Apps von Benutzerkonten werden unter /settings/apps/new angelegt, die von Organisationen
+ * unter /organizations/<name>/settings/apps/new. Die Kontoart wird öffentlich bei GitHub nachgesehen.
+ */
+export async function manifestZiel(konto: string, state: string): Promise<string> {
+  let typ = 'Organization';
+  try {
+    const r = await fetch(`https://api.github.com/users/${encodeURIComponent(konto)}`, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'TE-Digital-Zentrale' },
+    });
+    if (r.ok) typ = ((await r.json()) as { type?: string }).type ?? typ;
+  } catch {
+    /* ohne Antwort: Organisation annehmen */
+  }
+  const s = encodeURIComponent(state);
+  return typ === 'User'
+    ? `https://github.com/settings/apps/new?state=${s}`
+    : `https://github.com/organizations/${encodeURIComponent(konto)}/settings/apps/new?state=${s}`;
+}
+
 github.get('/status', async (c) => {
   sitzungPflicht(c);
   const v = await verbindungLaden(c.env);
@@ -82,10 +103,7 @@ github.post('/einrichten', async (c) => {
     c.env.DB.prepare('UPDATE github_verbindung SET state = ?, state_ablauf = ?, organisation = ? WHERE id = 1').bind(state, inMinuten(15), org),
     auditStatement(c.env.DB, s, { aktion: 'github.einrichtung_gestartet', objektTyp: 'github', details: { organisation: org, rechte: APP_RECHTE } }),
   ]);
-  return c.json({
-    aktion: `https://github.com/organizations/${encodeURIComponent(org)}/settings/apps/new?state=${encodeURIComponent(state)}`,
-    manifest,
-  });
+  return c.json({ aktion: await manifestZiel(org, state), manifest });
 });
 
 /**

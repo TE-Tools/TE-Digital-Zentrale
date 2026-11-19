@@ -94,7 +94,7 @@ export function GithubVerbindung() {
 
   return (
     <section id="github">
-      <Karte titel="GitHub-Verbindung" kicker={`Organisation ${v.organisation}`}>
+      <Karte titel="GitHub-Verbindung" kicker={`GitHub-Konto ${v.organisation}`}>
         <div style={{ display: 'grid', gap: 12 }}>
           {v.status === 'getrennt' && (
             <>
