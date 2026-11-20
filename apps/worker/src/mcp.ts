@@ -19,6 +19,7 @@ import { anschluss, gedrosselt } from './lib/drossel';
 import { sha256Hex } from './lib/krypto';
 import { branchVorschlag } from './lib/pfade';
 import { jetzt } from './lib/zeit';
+import { aenderungMelden, laufSetzen, type LaufZeile } from './lib/automatik';
 
 const PROTOKOLLE = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const SERVER = { name: 'te-digital-zentrale', title: 'TE-Digital Zentrale', version: '0.5.0' };
@@ -107,6 +108,24 @@ const WERKZEUGE: Werkzeug[] = [
       'Meldet das Ergebnis einer eigenen Aufgabe. Text mit den Abschnitten ERGEBNIS, OFFENE FRAGEN, FREIGABEANTRÄGE, ZWISCHENSTAND – sie werden automatisch zugeordnet ' +
       '(Rückfragen gehen an die Geschäftsführung, Freigabeanträge werden angelegt). Die Aufgabe geht danach in Prüfung.',
     inputSchema: { type: 'object', properties: { id, text: { type: 'string', minLength: 1, maxLength: 100000 } }, required: ['id', 'text'], additionalProperties: false },
+  },
+  {
+    name: 'lauf_melden',
+    title: 'Automatik-Lauf melden',
+    description:
+      'Nur für automatische Läufe (GitHub Actions): meldet Start und Ende eines Laufs an die Zentrale. ' +
+      'status laeuft = gestartet (url = Link zum GitHub-Lauf), fertig, fehler, limit (Nutzungslimit erreicht → Pause und automatische Fortsetzung).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        lauf: { type: 'integer', minimum: 1 },
+        status: { type: 'string', enum: ['laeuft', 'fertig', 'fehler', 'limit'] },
+        url: { type: 'string', pattern: '^https://github\\.com/' },
+        meldung: { type: 'string', maxLength: 500 },
+      },
+      required: ['lauf', 'status'],
+      additionalProperties: false,
+    },
   },
   {
     name: 'limit_melden',
@@ -503,6 +522,38 @@ async function werkzeugAusfuehren(
     case 'ergebnis_melden': {
       const r = await api<{ status: string; erkannt: Record<string, unknown> }>('POST', `/api/aufgaben/${str(args.id)}/ergebnis`, { text: str(args.text) });
       return text(`Ergebnis gespeichert, Status jetzt „${r.status}“. Erkannt: ${JSON.stringify(r.erkannt)}`, r);
+    }
+    case 'lauf_melden': {
+      const laufId = Number(args.lauf);
+      const status = str(args.status) as 'laeuft' | 'fertig' | 'fehler' | 'limit';
+      if (!['laeuft', 'fertig', 'fehler', 'limit'].includes(status)) throw new WerkzeugFehler('Unbekannter Status.');
+      const url = str(args.url);
+      if (url && !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/actions\/runs\/\d+/.test(url)) throw new WerkzeugFehler('Nur Links zu GitHub-Läufen.');
+      const l = await db.prepare('SELECT * FROM ki_laeufe WHERE id = ?').bind(laufId).first<LaufZeile>();
+      if (!l || l.mitarbeiter_id !== agent.mitarbeiterId) throw new WerkzeugFehler('Lauf nicht gefunden.');
+      if (agent.projekte) {
+        const p = await db.prepare('SELECT projekt_slug FROM aufgaben WHERE id = ?').bind(l.aufgabe_id).first<{ projekt_slug: string }>();
+        if (!p || !agent.projekte.includes(p.projekt_slug)) throw new WerkzeugFehler('Kein Zugriff auf dieses Projekt.');
+      }
+      if (['fertig', 'fehler', 'limit', 'abgebrochen'].includes(l.status)) return text(`Lauf ${laufId} ist bereits beendet (${l.status}).`);
+      const a = await db.prepare('SELECT status FROM aufgaben WHERE id = ?').bind(l.aufgabe_id).first<{ status: string }>();
+      let meldung = str(args.meldung);
+      if (status === 'laeuft') meldung ||= 'Claude arbeitet auf GitHub …';
+      if (status === 'fertig' && a?.status === 'in_bearbeitung') meldung = 'Beendet, aber ohne gemeldetes Ergebnis – bitte prüfen.';
+      if (status === 'fertig') meldung ||= 'Ergebnis eingetragen.';
+      if (status === 'fehler') meldung ||= 'Der Lauf ist fehlgeschlagen – Details im GitHub-Lauf.';
+      if (status === 'limit') {
+        if (a && a.status !== 'wartend' && a.status !== 'abgeschlossen' && a.status !== 'abgebrochen') {
+          await api('POST', `/api/aufgaben/${l.aufgabe_id}/limit`, {
+            bis: new Date(Date.now() + 60 * 60_000).toISOString(),
+            notiz: 'Nutzungslimit des Claude-Abos erreicht – automatische Fortsetzung, sobald wieder frei.',
+          });
+        }
+        meldung ||= 'Nutzungslimit erreicht – geht automatisch weiter, sobald wieder frei.';
+      }
+      await laufSetzen(db, laufId, status, { meldung, ...(url ? { extern_url: url } : {}) });
+      await aenderungMelden(env, l.aufgabe_id);
+      return text(`Lauf ${laufId}: ${status}.`);
     }
     case 'limit_melden': {
       const r = await api<{ bis: string }>('POST', `/api/aufgaben/${str(args.id)}/limit`, { ...(args.bis ? { bis: str(args.bis) } : {}), notiz: str(args.notiz) });

@@ -1,0 +1,138 @@
+name: KI-Auftrag (Claude Code)
+
+# Wird von der TE-Digital Zentrale gestartet (GitHub-App, „Automatik“) – nicht von Hand nötig.
+# Claude Code arbeitet hier mit dem Claude-ABO (OAuth-Token aus `claude setup-token`), ohne API-Kosten,
+# holt sich den Auftrag per MCP aus der Zentrale und meldet Zwischenstände und Ergebnis dorthin zurück.
+#
+# Secrets in diesem Repository (Settings → Secrets and variables → Actions):
+#   CLAUDE_CODE_OAUTH_TOKEN  – Ausgabe von `claude setup-token` (persönliches Abo, ca. 1 Jahr gültig)
+#   TE_ZENTRALE_TOKEN        – KI-Zugang für „Claude Code“ (Zentrale → Einstellungen → KI-Zugänge)
+#
+# Für andere Projekt-Repositories diese Datei 1:1 kopieren und dieselben zwei Secrets anlegen.
+# Datenschutz: Das Repository kann öffentlich sein – deshalb landet KEINE Ausgabe von Claude im Protokoll.
+
+on:
+  workflow_dispatch:
+    inputs:
+      aufgabe:
+        description: 'Aufgabennummer (TD-0001)'
+        required: true
+      lauf:
+        description: 'Lauf-Nummer der Zentrale'
+        required: true
+      modus:
+        description: 'voll oder fortsetzung'
+        required: false
+        default: 'voll'
+
+permissions:
+  contents: write        # eigener Branch je Aufgabe (nie main – Workflows selbst sind ohnehin geschützt)
+  pull-requests: write   # Entwurfs-PR
+
+concurrency:
+  group: ki-auftrag-${{ inputs.aufgabe }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ZENTRALE: https://zentrale.te-alltagshelfer.org
+      TE_ZENTRALE_TOKEN: ${{ secrets.TE_ZENTRALE_TOKEN }}
+      AUFGABE: ${{ inputs.aufgabe }}
+      LAUF: ${{ inputs.lauf }}
+      MODUS: ${{ inputs.modus }}
+      LAUF_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Eingaben prüfen
+        run: |
+          [[ "$AUFGABE" =~ ^TD-[0-9]{4,}$ ]] || { echo "Ungültige Aufgabe"; exit 1; }
+          [[ "$LAUF" =~ ^[0-9]{1,9}$ ]] || { echo "Ungültiger Lauf"; exit 1; }
+          [[ "$MODUS" == "voll" || "$MODUS" == "fortsetzung" ]] || { echo "Ungültiger Modus"; exit 1; }
+          test -n "$TE_ZENTRALE_TOKEN" || { echo "Secret TE_ZENTRALE_TOKEN fehlt"; exit 1; }
+
+      - name: Rückmeldung an die Zentrale vorbereiten
+        run: |
+          cat > "$RUNNER_TEMP/melden.sh" <<'SKRIPT'
+          #!/usr/bin/env bash
+          # melden <status> [meldung] – ruft das MCP-Werkzeug lauf_melden der Zentrale auf
+          jq -n --arg s "$1" --arg u "$LAUF_URL" --arg m "${2:-}" --argjson l "$LAUF" \
+            '{jsonrpc:"2.0",id:1,method:"tools/call",params:{name:"lauf_melden",arguments:({lauf:$l,status:$s,url:$u} + (if $m=="" then {} else {meldung:$m} end))}}' \
+          | curl -fsS --retry 3 -X POST "$ZENTRALE/mcp" \
+              -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
+              -H "authorization: Bearer $TE_ZENTRALE_TOKEN" --data-binary @- -o /dev/null \
+          && echo "Zentrale informiert: $1"
+          SKRIPT
+          chmod +x "$RUNNER_TEMP/melden.sh"
+          "$RUNNER_TEMP/melden.sh" laeuft "Claude startet auf GitHub …"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Claude Code installieren
+        run: npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 && claude --version
+
+      - name: Claude arbeitet
+        id: claude
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -n "$CLAUDE_CODE_OAUTH_TOKEN" || { echo "Secret CLAUDE_CODE_OAUTH_TOKEN fehlt"; echo "ergebnis=fehler" >> "$GITHUB_OUTPUT"; exit 0; }
+          git config user.name "TE-Zentrale Claude"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # MCP-Verbindung zur Zentrale (Datei nur im flüchtigen Runner-Verzeichnis, wird nie ausgegeben)
+          umask 077
+          cat > "$RUNNER_TEMP/mcp.json" <<JSON
+          { "mcpServers": { "te-zentrale": { "type": "http", "url": "https://zentrale.te-alltagshelfer.org/mcp",
+            "headers": { "Authorization": "Bearer ${TE_ZENTRALE_TOKEN}" } } } }
+          JSON
+
+          AUFTRAG="Du arbeitest als Claude Code (Technische Leitung) der TE-Digital AI Company, verbunden mit der Zentrale über den MCP-Server te-zentrale.
+          Bearbeite ausschließlich Aufgabe ${AUFGABE}.
+          1. Lies den Auftrag mit aufgabe_lesen (id ${AUFGABE}, modus ${MODUS}). Er enthält Rolle, Ziel, Regeln und Antwortformat.
+          2. Arbeite den Auftrag vollständig ab. Speichere bei längerer Arbeit Zwischenstände mit zwischenstand_speichern.
+          3. Code-Änderungen in diesem Repository ($GITHUB_REPOSITORY): eigener Branch ki/${AUFGABE,,}-<kurzer-titel>, committen, pushen,
+             Entwurfs-Pull-Request mit 'gh pr create --draft', dann branch_melden mit Branch und PR-Link.
+             Niemals nach main pushen, nichts mergen, keine Workflows ändern, keine Geheimnisse ausgeben.
+          4. Stufe-3-Maßnahmen (Veröffentlichung, Kosten, Löschen, Rechte, Sicherheit) nie selbst ausführen – nur freigabe_beantragen.
+          5. Zum Schluss ergebnis_melden mit den Abschnitten ERGEBNIS, OFFENE FRAGEN, FREIGABEANTRÄGE, ZWISCHENSTAND.
+          Fehlen Informationen: bestmögliches Ergebnis liefern und die Lücken unter OFFENE FRAGEN nennen."
+
+          set +e
+          claude -p "$AUFTRAG" \
+            --mcp-config "$RUNNER_TEMP/mcp.json" \
+            --max-turns 120 \
+            --output-format json \
+            --allowedTools "mcp__te-zentrale" "Read" "Edit" "Write" "Glob" "Grep" "TodoWrite" \
+              "Bash(git:*)" "Bash(gh pr create:*)" "Bash(gh pr view:*)" "Bash(npm:*)" "Bash(npx:*)" "Bash(node:*)" "Bash(ls:*)" \
+            > "$RUNNER_TEMP/ausgabe.json" 2> "$RUNNER_TEMP/fehler.txt"
+          code=$?
+          set -e
+          # Nur den Ausgang protokollieren – Inhalte bleiben privat (öffentliches Repository möglich)
+          if [ $code -eq 0 ] && ! jq -e '.is_error == true' "$RUNNER_TEMP/ausgabe.json" >/dev/null 2>&1; then
+            echo "ergebnis=fertig" >> "$GITHUB_OUTPUT"
+          elif grep -qiE 'usage limit|limit reached|rate.?limit|too many requests' "$RUNNER_TEMP/ausgabe.json" "$RUNNER_TEMP/fehler.txt"; then
+            echo "ergebnis=limit" >> "$GITHUB_OUTPUT"
+          else
+            echo "ergebnis=fehler" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Claude beendet (Code $code)."
+
+      - name: Ergebnis an die Zentrale melden
+        if: always()
+        env:
+          ERGEBNIS: ${{ steps.claude.outputs.ergebnis }}
+        run: |
+          case "${ERGEBNIS:-fehler}" in
+            fertig) "$RUNNER_TEMP/melden.sh" fertig ;;
+            limit)  "$RUNNER_TEMP/melden.sh" limit ;;
+            *)      "$RUNNER_TEMP/melden.sh" fehler "Lauf fehlgeschlagen – Details im GitHub-Lauf (nur Status, keine Inhalte)." ;;
+          esac

@@ -1,6 +1,6 @@
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { liveStub, naechsterTakt, TAKT_MS, type ZentraleLive } from '../src/live';
+import { naechsterTakt, taktStub, TAKT_MS, type ZentraleLive } from '../src/live';
 import { anfrage } from './hilfe';
 
 describe('Takt per Durable-Object-Alarm (statt Cron)', () => {
@@ -15,7 +15,7 @@ describe('Takt per Durable-Object-Alarm (statt Cron)', () => {
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ ok: true, takt: true });
 
-    const stub = liveStub(env);
+    const stub = taktStub(env);
     const geplant = await runInDurableObject(stub, (_o: ZentraleLive, state) => state.storage.getAlarm());
     expect(geplant).not.toBeNull();
     expect(geplant! - Date.now()).toBeLessThanOrEqual(TAKT_MS);

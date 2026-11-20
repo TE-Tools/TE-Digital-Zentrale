@@ -92,6 +92,24 @@ Der Worker stellt unter `/mcp` einen MCP-Server bereit (Streamable HTTP, zustand
 
 **Noch nicht enthalten:** Claude.ai (Web/App) als Konnektor. Er verlangt OAuth, das folgt als eigener Schritt. ChatGPT, Gemini und Grok können MCP mit kostenlosen Zugängen nicht nutzen und arbeiten weiter mit Übergabepaketen.
 
+### Automatik – Aufträge ohne Kopieren
+
+Zwei KI-Mitarbeiter arbeiten Aufträge selbstständig ab. Es fallen keine kostenpflichtigen API-Aufrufe an.
+
+| Mitarbeiter | Womit | Kosten / Grenze |
+|---|---|---|
+| **Assistent** | Cloudflare Workers AI im eigenen Konto (Standard: Llama 3.3 70B) | 10.000 Neurons pro Tag gratis, danach Pause bis 01:00 Uhr und automatische Fortsetzung |
+| **Claude Code** | Workflow `ki-auftrag.yml` auf GitHub. Claude Code nutzt das **Claude-Abo** (`claude setup-token`) | Nutzungsgrenzen des Abos. Bei Limit Pause und automatische Fortsetzung |
+
+- **Starten:** Beim Anlegen „Sofort automatisch bearbeiten lassen“ ankreuzen oder in der Aufgabe *Jetzt automatisch bearbeiten lassen* wählen.
+- **Ablauf:** Die Takt-Instanz des Durable Objects arbeitet die Läufe per Alarm ab. Das geht sofort nach dem Start und hat genug Zeit für eine KI-Antwort.
+- **Regeln:** Ergebnis, Status und Limit laufen über die normalen API-Routen als dieser Mitarbeiter. Es gelten dieselben Regeln, dasselbe Audit und dieselben Push-Meldungen.
+- **„Wer arbeitet gerade?“:** Die Karte in jeder Aufgabe zeigt wartet, arbeitet seit …, letztes Lebenszeichen, fertig, Pause oder Fehler, dazu den Link zum GitHub-Lauf.
+- **Ohne Rückmeldung:** Meldet sich ein Lauf zu lange nicht (Workers AI 15 Min., GitHub 150 Min.), wird er als Fehler beendet.
+- **Andere Mitarbeiter:** Bei Mitarbeitern ohne Automatik steht ehrlich da, dass nur gearbeitet wird, während das Paket im Chat liegt.
+- **Claude Code auf GitHub:** Arbeitet im Repository des Projekts, falls eines mit dem Projekt verknüpft ist, sonst in `TE-Digital-Zentrale`. Es nutzt einen eigenen Branch und einen Entwurfs-PR, nie `main` und nie einen Merge. Das Protokoll enthält nur Status, keine Inhalte, denn das Repository ist öffentlich.
+- **Einrichtung:** siehe `docs/Betrieb.md` → „Automatik einrichten“.
+
 ### GitHub-App (von der Geschäftsführung selbst eingerichtet)
 
 *Einstellungen → GitHub-Verbindung → Verbindung einrichten (Passkey)* durchläuft drei Schritte:

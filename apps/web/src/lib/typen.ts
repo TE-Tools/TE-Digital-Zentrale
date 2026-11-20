@@ -18,6 +18,8 @@ export interface Mitarbeiter {
   anbieter: 'chatgpt' | 'claude' | 'gemini' | 'grok' | 'flexibel';
   zugang: 'abo' | 'kostenlos' | 'flexibel';
   arbeitsweg: 'mcp' | 'paket' | 'github' | 'flexibel';
+  /** arbeitet selbstständig ohne Kopieren */
+  automatik?: 'workers_ai' | 'github_claude' | null;
   status: MitarbeiterStatus;
   status_bestaetigt_am: string | null;
   limit_bis: string | null;
@@ -212,4 +214,29 @@ export interface Paket {
   text: string;
   zeichen: number;
   warnungen: string[];
+}
+
+// ---------------------------------------------------------------- Automatik
+
+export interface KiLauf {
+  id: number;
+  aufgabe_id: string;
+  mitarbeiter_id: string;
+  art: 'workers_ai' | 'github_claude';
+  modus: 'voll' | 'fortsetzung';
+  status: 'wartet' | 'laeuft' | 'fertig' | 'fehler' | 'limit' | 'abgebrochen';
+  meldung: string;
+  repo: string | null;
+  extern_url: string | null;
+  erstellt_am: string;
+  gestartet_am: string | null;
+  aktualisiert_am: string;
+  beendet_am: string | null;
+}
+
+export interface AutomatikDaten {
+  mitarbeiter: string | null;
+  automatik: 'workers_ai' | 'github_claude' | null;
+  laeufe: KiLauf[];
+  jetzt: string;
 }

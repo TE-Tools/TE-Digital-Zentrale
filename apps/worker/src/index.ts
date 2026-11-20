@@ -3,7 +3,7 @@ import type { AppEnv } from './env';
 import { ApiFehler } from './lib/fehler';
 import { sitzungLaden, sitzungPflicht } from './lib/sitzung';
 import { cronAusfuehren } from './cron';
-import { liveSenden, liveStub, ZentraleLive } from './live';
+import { liveSenden, liveStub, taktStub, ZentraleLive } from './live';
 import benachrichtigungen from './routes/benachrichtigungen';
 import entwicklung from './routes/entwicklung';
 import github from './routes/github';
@@ -12,6 +12,7 @@ import zugaenge from './routes/zugaenge';
 import wissen from './routes/wissen';
 import berichte from './routes/berichte';
 import kosten from './routes/kosten';
+import automatik from './routes/automatik';
 import { agentLaden } from './lib/agent';
 import { anschluss, drosseln } from './lib/drossel';
 import { mcpBehandeln } from './mcp';
@@ -127,7 +128,7 @@ app.get('/api/gesundheit', async (c) => {
   // Weckt bei Bedarf den Takt (Durable-Object-Alarm statt Cron); der Rauchtest nach jedem Deploy ruft das auf.
   let takt = false;
   try {
-    takt = (await liveStub(c.env).fetch('https://live/takt')).ok;
+    takt = (await taktStub(c.env).fetch('https://takt/takt')).ok;
   } catch (e) {
     console.error('Takt nicht erreichbar', e);
   }
@@ -149,6 +150,7 @@ app.route('/api/entwicklung', entwicklung);
 app.route('/api/wissen', wissen);
 app.route('/api/berichte', berichte);
 app.route('/api/kosten', kosten);
+app.route('/api/automatik', automatik);
 
 /** MCP-Server für Claude Code / Claude.ai (eigene Token-Authentifizierung, siehe mcp.ts) */
 app.all('/mcp', (c) => mcpBehandeln(c.req.raw, c.env, c.executionCtx as unknown as ExecutionContext, app));

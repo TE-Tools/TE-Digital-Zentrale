@@ -3,7 +3,7 @@
  * - Manifest-Ablauf: App wird mit minimalen Rechten auf github.com angelegt, Schlüssel kommen zurück
  * - Schlüssel (privater App-Schlüssel, Webhook-Geheimnis) liegen AES-GCM-verschlüsselt in D1;
  *   der Schlüssel dafür existiert nur als Worker-Secret ZENTRALE_SCHLUESSEL
- * - Zugriff: App-JWT (RS256) → Installations-Token (1 Std.), nur Lesen + Issues/Kommentare
+ * - Zugriff: App-JWT (RS256) → Installations-Token (1 Std.), nur Lesen + Issues/Kommentare + Workflows starten
  * Free-Tarif: max. 50 Unteranfragen je Aufruf → Abgleich ist hart begrenzt.
  */
 import type { Env } from '../env';
@@ -21,6 +21,8 @@ export const APP_RECHTE = {
   pull_requests: 'read',
   checks: 'read',
   issues: 'write',
+  // Automatik: Workflow „ki-auftrag.yml“ starten (Claude Code mit dem Claude-Abo)
+  actions: 'write',
 } as const;
 export const APP_EREIGNISSE = ['pull_request', 'check_suite', 'push'] as const;
 

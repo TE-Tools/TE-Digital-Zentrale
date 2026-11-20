@@ -12,6 +12,8 @@ import { AUFGABEN_STATUS, istErlaubt, OFFEN, type AufgabenStatus } from '../lib/
 import { inMinuten, jetzt } from '../lib/zeit';
 import { meldenAusRoute } from './benachrichtigungen';
 import { wissenFuerKontext } from './wissen';
+import { laufAnlegen } from '../lib/automatik';
+import { automatikAnstossen } from '../live';
 
 const aufgaben = new Hono<AppEnv>();
 
@@ -36,6 +38,8 @@ const NeuSchema = z.object({
   prioritaet: z.enum(PRIORITAETEN).default('normal'),
   uebergabe: UebergabeSchema.default(UebergabeSchema.parse({})),
   abhaengig_von: z.array(z.string().regex(/^TD-\d{4,}$/)).max(20).default([]),
+  /** Zuständiger arbeitet automatisch (Assistent, Claude Code) → sofort loslegen */
+  automatisch_starten: z.boolean().default(false),
 });
 
 const AenderungSchema = z.object({
@@ -223,7 +227,21 @@ aufgaben.post('/', async (c) => {
       : []),
     auditStatement(db, s, { aktion: 'aufgabe.angelegt', objektTyp: 'aufgabe', objektId: id, projektSlug: d.projekt_slug, details: { titel: d.titel } }),
   ]);
-  return c.json({ ok: true, id }, 201);
+  let automatik: { lauf: number | null; hinweis?: string } | undefined;
+  if (d.automatisch_starten && d.zustaendig_id) {
+    try {
+      automatik = { lauf: await laufAnlegen(db, id) };
+      const p = automatikAnstossen(c.env);
+      try {
+        c.executionCtx.waitUntil(p);
+      } catch {
+        await p;
+      }
+    } catch (e) {
+      automatik = { lauf: null, hinweis: e instanceof Error ? e.message : String(e) };
+    }
+  }
+  return c.json({ ok: true, id, ...(automatik ? { automatik } : {}) }, 201);
 });
 
 // ------------------------------------------------------------------ Ändern (inkl. Status)

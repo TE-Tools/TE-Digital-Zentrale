@@ -16,6 +16,28 @@
 3. *Actions → Produktivsetzung → Run workflow*: „veröffentlichen“ eingeben, **Erste Veröffentlichung** ankreuzen, in der Umgebung freigeben.
 4. `https://zentrale.te-alltagshelfer.org` öffnen → Einrichtungscode → Passkey → Wiederherstellungscodes sichern.
 
+## Automatik einrichten (Aufträge ohne Kopieren)
+
+**Assistent (Workers AI):** Hier ist nichts zu tun. Die Bindung `AI` kommt mit der nächsten Produktivsetzung. Die Grenze ist das Gratis-Kontingent von 10.000 Neurons pro Tag, im Free-Tarif entstehen keine Kosten.
+
+**Claude Code auf GitHub (Claude-Abo):** Die Schritte sind Stufe 3, die Geschäftsführung führt sie selbst aus.
+
+1. **Abo-Token erzeugen:** Auf dem eigenen PC im Terminal ausführen:
+   ```powershell
+   claude setup-token
+   ```
+   Die Ausgabe ist der Token. Er gilt etwa 1 Jahr und hängt am persönlichen Abo. Nie weitergeben.
+2. **KI-Zugang anlegen:** In der Zentrale unter *Einstellungen → KI-Zugänge → Zugang erstellen* den Mitarbeiter „Claude Code“ wählen. Das Token kopieren, es wird nur einmal angezeigt.
+3. **Secrets in GitHub eintragen:** Im Repository `TE-Digital-Zentrale` unter *Settings → Secrets and variables → Actions → New repository secret* anlegen:
+   - `CLAUDE_CODE_OAUTH_TOKEN`: der Token aus Schritt 1
+   - `TE_ZENTRALE_TOKEN`: das Token aus Schritt 2
+4. **GitHub-Verbindung:** Sie wird in der Zentrale unter *Einstellungen → GitHub-Verbindung* eingerichtet. Die App bekommt dabei das Recht **Actions: Read and write**, damit sie den Workflow starten darf.
+   - Ist die App schon vorher angelegt worden, gilt Folgendes: Auf GitHub unter *Settings → Developer settings → GitHub Apps → App → Permissions* das Recht *Actions: Read and write* ergänzen. Danach die Änderung in der Installation bestätigen.
+5. **Weitere Projekt-Repositories (optional):**
+   - `.github/workflows/ki-auftrag.yml` in das jeweilige Repository kopieren und dieselben zwei Secrets anlegen.
+   - Das Repository in der Zentrale mit dem Projekt verknüpfen. Ohne verknüpftes Repository arbeitet Claude in `TE-Digital-Zentrale`.
+6. **Empfohlen:** Branch-Schutz für `main` setzen (*Settings → Branches*), damit auch versehentlich nichts direkt auf `main` landet.
+
 ## Erstmalige Produktivsetzung (Stufe 3 – Geschäftsführung)
 
 Alles, was ein Konto, Kosten oder Veröffentlichung betrifft, führt die Geschäftsführung selbst aus. Claude Code bereitet vor und prüft.

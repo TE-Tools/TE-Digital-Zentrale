@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
+import { AUTOMATIK_TEXT } from '../komponenten/Automatik';
 import { AlertTriangle, Info } from 'lucide-preact';
-import { Karte, Ladebalken } from '../komponenten/Bausteine';
+import { Karte, Ladebalken, Pill } from '../komponenten/Bausteine';
 import { Dialog } from '../komponenten/Dialog';
 import { MitarbeiterKarte } from '../komponenten/Mitarbeiter';
 import { toast } from '../komponenten/Toast';
@@ -34,9 +35,9 @@ export function MitarbeiterSeite({ benutzer }: { benutzer: Benutzer }) {
       <div class="hinweis info">
         <Info size={18} aria-hidden="true" />
         <p>
-          <b>Arbeitsweise:</b> Claude Code (Abo) greift ab Phase 5 direkt auf die Zentrale zu. ChatGPT, Gemini und Grok arbeiten über
-          kostenlose Web-Zugänge mit Übergabepaketen. Ist ein Kontingent aufgebraucht: „Limit erreicht“ melden – nach Ablauf erscheint die
-          Aufgabe auf dem Dashboard zum Fortsetzen.
+          <b>Arbeitsweise:</b> <b>Automatisch</b> (ohne Kopieren) arbeiten Claude Code – auf GitHub mit Ihrem Claude-Abo – und der Assistent
+          (Workers AI, kostenlos im eigenen Cloudflare-Konto). ChatGPT, Gemini und Grok arbeiten über kostenlose Web-Zugänge mit Übergabepaketen
+          – nur während Sie das Paket im Chat einfügen. Ist ein Kontingent aufgebraucht, pausiert die Aufgabe; automatische Mitarbeiter machen danach selbst weiter.
         </p>
       </div>
       <Karte titel="Besetzung" kicker="Organisation laut Pflichtenheft">
@@ -46,6 +47,7 @@ export function MitarbeiterSeite({ benutzer }: { benutzer: Benutzer }) {
               <MitarbeiterKarte m={m} ausfuehrlich />
               <div class="reihe" style={{ gap: 6, fontSize: 12.5 }}>
                 <a href={`/aufgaben?zustaendig=${m.id}`} class="zeitstempel">{m.offene_aufgaben} offen · {m.erledigte_aufgaben} erledigt →</a>
+                {m.automatik ? <Pill ton="ok" titel={AUTOMATIK_TEXT[m.automatik]}>arbeitet automatisch</Pill> : <Pill>per Kopieren</Pill>}
               </div>
               {gf && m.anbieter !== 'flexibel' && (
                 <div class="reihe" style={{ gap: 6 }}>

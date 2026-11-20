@@ -30,6 +30,7 @@ import { datum, relativeZeit } from '../lib/format';
 import { useKopf } from '../lib/kopf';
 import { AUFGABEN_STATUS, FREIGABE_TYP, NACHRICHTEN_ART, PRIORITAET, PRUEFSTATUS, UEBERGAENGE, teilnehmerName, zuLokalFeld } from '../lib/texte';
 import { Auswahl } from '../komponenten/Auswahl';
+import { AutomatikKarte } from '../komponenten/Automatik';
 import type { AufgabeDetailDaten, AufgabenStatus, Benutzer, Mitarbeiter, NachrichtenArt, Paket } from '../lib/typen';
 
 const UEBERGABE_TEXTE: [keyof NonNullable<AufgabeDetailDaten['uebergabe']>, string][] = [
@@ -65,6 +66,8 @@ export function AufgabeDetail({ id, benutzer }: { id: string; benutzer: Benutzer
   const gf = benutzer.rolle === 'gf';
   const mitarbeiter = ma.daten?.mitarbeiter ?? [];
   const beendet = a.status === 'abgeschlossen' || a.status === 'abgebrochen';
+  // Automatische Mitarbeiter brauchen kein Kopieren → Paket und Einfügen ausblenden
+  const automatisch = !!mitarbeiter.find((m) => m.id === a.zustaendig_id)?.automatik;
   const st = AUFGABEN_STATUS[a.status];
 
   async function aktion(fn: () => Promise<unknown>, erfolg: string) {
@@ -174,8 +177,9 @@ export function AufgabeDetail({ id, benutzer }: { id: string; benutzer: Benutzer
 
       {/* Links: Paket + Ergebnis */}
       <div class="sp-7" style={{ display: 'grid', gap: 18, alignContent: 'start' }}>
-        {!beendet && <PaketKarte id={id} fortsetzung={a.status === 'wartend' || daten.checkpoints.some((c) => c.grund === 'limit')} version={a.version} />}
-        {gf && !beendet && <ErgebnisEinfuegen id={id} fertig={neuLaden} />}
+        {!beendet && <AutomatikKarte id={id} gf={gf} status={a.status} />}
+        {!beendet && !automatisch && <PaketKarte id={id} fortsetzung={a.status === 'wartend' || daten.checkpoints.some((c) => c.grund === 'limit')} version={a.version} />}
+        {gf && !beendet && !automatisch && <ErgebnisEinfuegen id={id} fertig={neuLaden} />}
         <Karte titel="Ergebnis" kicker="Aktueller Stand">
           {a.ergebnis ? <p class="textblock">{a.ergebnis}</p> : <p class="textblock leer">Noch kein Ergebnis zurückgeführt.</p>}
           {gf && a.ergebnis && (

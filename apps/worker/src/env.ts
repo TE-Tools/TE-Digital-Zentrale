@@ -27,6 +27,12 @@ export interface Env {
   RL_ANMELDUNG?: RateLimit;
   RL_MCP?: RateLimit;
   RL_SCHREIBEN?: RateLimit;
+  /** Automatik: Cloudflare Workers AI (nur Produktion; Gratis-Kontingent je Tag) */
+  AI?: Ai;
+  /** Optional: anderes Workers-AI-Modell */
+  KI_MODELL?: string;
+  /** Repository für Claude-Aufträge ohne eigenes Projekt-Repository (Standard TE-Tools/TE-Digital-Zentrale) */
+  KI_ARBEITS_REPO?: string;
 }
 
 export interface Benutzer {

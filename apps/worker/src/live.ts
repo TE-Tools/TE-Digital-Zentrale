@@ -8,6 +8,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './env';
 import { cronAusfuehren } from './cron';
+import { laeufeAbarbeiten } from './lib/automatik';
 
 /** Takt der zeitgesteuerten Aufgaben (wie bisher „*\/15 * * * *“). */
 export const TAKT_MS = 15 * 60 * 1000;
@@ -18,34 +19,51 @@ export function naechsterTakt(ab: number): number {
 }
 
 /**
- * Zusätzlich übernimmt das Objekt den Takt der zeitgesteuerten Aufgaben per Alarm:
- * Der Free-Tarif erlaubt nur 5 Cron-Trigger je Konto (bereits durch andere TE-Apps belegt),
- * Durable-Object-Alarme zählen dort nicht mit und sind kostenlos.
+ * Zweite Rolle derselben Klasse (eigene Instanz „takt“): Taktgeber per Alarm.
+ * - alle 15 Minuten die zeitgesteuerten Aufgaben (cron.ts) – der Free-Tarif erlaubt nur 5 Cron-Trigger
+ *   je Konto (durch andere TE-Apps belegt), Durable-Object-Alarme zählen dort nicht mit
+ * - sofort nach „anstossen“: wartende Automatik-Läufe abarbeiten (Workers AI, GitHub-Start).
+ *   Alarme dürfen bis zu 15 Minuten laufen – genug für eine KI-Antwort, anders als waitUntil.
+ * Eigene Instanz, damit die Automatik den Echtzeit-Verteiler („zentrale“) normal ansprechen kann.
  */
 export class ZentraleLive extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     // Ping/Pong ohne das Objekt aufzuwecken
     this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
-    // Takt sicherstellen, sobald das Objekt irgendwann geweckt wird (Alarme überdauern Deploys)
-    this.ctx.blockConcurrencyWhile(() => this.taktSichern());
   }
 
-  private async taktSichern(): Promise<void> {
-    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(naechsterTakt(Date.now()));
+  private async alsTakt(): Promise<void> {
+    await this.ctx.storage.put('rolle', 'takt');
+    if ((await this.ctx.storage.get<number>('takt')) === undefined) await this.ctx.storage.put('takt', naechsterTakt(Date.now()));
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm((await this.ctx.storage.get<number>('takt'))!);
   }
 
   override async alarm(): Promise<void> {
+    if ((await this.ctx.storage.get('rolle')) !== 'takt') return; // nur die Takt-Instanz arbeitet
+    const jetzt = Date.now();
+    let faellig = await this.ctx.storage.get<number>('takt');
+    const taktJetzt = faellig === undefined || jetzt >= faellig - 1000;
+    if (taktJetzt) {
+      faellig = naechsterTakt(jetzt);
+      await this.ctx.storage.put('takt', faellig);
+    }
     // Zuerst neu planen – fällt ein Lauf aus, läuft der Takt trotzdem weiter
-    await this.ctx.storage.setAlarm(naechsterTakt(Date.now()));
-    const stats = await cronAusfuehren(this.env);
-    console.log('Takt', JSON.stringify(stats));
+    await this.ctx.storage.setAlarm(faellig!);
+    try {
+      const weitere = await laeufeAbarbeiten(this.env);
+      if (weitere) await this.ctx.storage.setAlarm(Date.now() + 1000);
+    } catch (e) {
+      console.error('Automatik', e);
+    }
+    if (taktJetzt) console.log('Takt', JSON.stringify(await cronAusfuehren(this.env)));
   }
 
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === '/takt') {
-      await this.taktSichern();
+    if (url.pathname === '/takt' || url.pathname === '/anstossen') {
+      await this.alsTakt();
+      if (url.pathname === '/anstossen') await this.ctx.storage.setAlarm(Date.now());
       return Response.json({ naechster: new Date((await this.ctx.storage.getAlarm()) ?? 0).toISOString() });
     }
     if (url.pathname === '/senden' && request.method === 'POST') {
@@ -78,7 +96,7 @@ export class ZentraleLive extends DurableObject<Env> {
   }
 }
 
-export function liveStub(env: Env): DurableObjectStub {
+function stub(env: Env, name: string): DurableObjectStub {
   // EU-Jurisdiktion: das Objekt läuft und speichert ausschließlich in der EU
   let ns: DurableObjectNamespace = env.LIVE;
   try {
@@ -86,7 +104,24 @@ export function liveStub(env: Env): DurableObjectStub {
   } catch {
     /* lokal (Miniflare) ggf. nicht unterstützt */
   }
-  return ns.get(ns.idFromName('zentrale'));
+  return ns.get(ns.idFromName(name));
+}
+
+export function liveStub(env: Env): DurableObjectStub {
+  return stub(env, 'zentrale');
+}
+
+export function taktStub(env: Env): DurableObjectStub {
+  return stub(env, 'takt');
+}
+
+/** Wartende Automatik-Läufe sofort abarbeiten lassen (statt bis zum nächsten Takt zu warten). */
+export async function automatikAnstossen(env: Env): Promise<void> {
+  try {
+    await taktStub(env).fetch('https://takt/anstossen', { method: 'POST' });
+  } catch (e) {
+    console.error('Automatik nicht erreichbar', e);
+  }
 }
 
 export async function liveSenden(env: Env, nachricht: Record<string, unknown>): Promise<void> {

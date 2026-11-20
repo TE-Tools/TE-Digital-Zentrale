@@ -111,7 +111,7 @@ describe('GitHub-Verbindung (ohne Netz)', () => {
     const cookie = await devAnmelden();
     const s = await anfrage('/api/github/status', { cookie });
     expect(s.body.verbindung).toMatchObject({ status: 'getrennt', organisation: 'TE-Tools' });
-    expect(s.body.rechte).toEqual({ metadata: 'read', pull_requests: 'read', checks: 'read', issues: 'write' });
+    expect(s.body.rechte).toEqual({ metadata: 'read', pull_requests: 'read', checks: 'read', issues: 'write', actions: 'write' });
     // Ohne ZENTRALE_SCHLUESSEL in der Testumgebung → 503
     const e = await anfrage('/api/github/einrichten', { cookie, body: {} });
     expect(e.status).toBe(503);

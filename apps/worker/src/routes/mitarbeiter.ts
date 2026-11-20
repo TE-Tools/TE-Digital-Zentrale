@@ -19,7 +19,7 @@ export const EFFEKTIVER_STATUS = `CASE WHEN m.status = 'wartend_limit' AND m.lim
 mitarbeiter.get('/', async (c) => {
   sitzungPflicht(c);
   const r = await c.env.DB.prepare(
-    `SELECT m.id, m.name, m.rolle, m.anbieter, m.zugang, m.arbeitsweg, ${EFFEKTIVER_STATUS} AS status, m.status_bestaetigt_am,
+    `SELECT m.id, m.name, m.rolle, m.anbieter, m.zugang, m.arbeitsweg, m.automatik, ${EFFEKTIVER_STATUS} AS status, m.status_bestaetigt_am,
             m.limit_bis, m.farbe, m.aktiv,
             (SELECT COUNT(*) FROM aufgaben a WHERE a.zustaendig_id = m.id AND a.status NOT IN ('abgeschlossen','abgebrochen')) AS offene_aufgaben,
             (SELECT COUNT(*) FROM aufgaben a WHERE a.zustaendig_id = m.id AND a.status = 'abgeschlossen') AS erledigte_aufgaben,

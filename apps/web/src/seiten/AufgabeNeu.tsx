@@ -32,6 +32,7 @@ export function AufgabeNeu() {
   const [fehler, setFehler] = useState<string | null>(null);
   const [feldFehler, setFeldFehler] = useState<Record<string, string>>({});
   const [laeuft, setLaeuft] = useState(false);
+  const [zustaendig, setZustaendig] = useState('');
   const beschreibungRef = useRef<HTMLTextAreaElement>(null);
   const titelRef = useRef<HTMLInputElement>(null);
   // Vorlage aus dem Teilen-Ziel (einmalig)
@@ -56,7 +57,7 @@ export function AufgabeNeu() {
     setFehler(null);
     setFeldFehler({});
     try {
-      const r = await api.post<{ id: string }>('/aufgaben', {
+      const r = await api.post<{ id: string; automatik?: { lauf: number | null; hinweis?: string } }>('/aufgaben', {
         titel: t('titel'),
         beschreibung: t('beschreibung'),
         projekt_slug: t('projekt_slug'),
@@ -64,8 +65,10 @@ export function AufgabeNeu() {
         prioritaet: t('prioritaet') || 'normal',
         uebergabe,
         abhaengig_von: f.getAll('abhaengig_von').map(String),
+        automatisch_starten: f.get('automatisch_starten') === 'ja',
       });
-      toast(`Auftrag ${r.id} angelegt`);
+      toast(r.automatik?.lauf ? `Auftrag ${r.id} angelegt – die Bearbeitung startet` : `Auftrag ${r.id} angelegt`);
+      if (r.automatik?.hinweis) toast(r.automatik.hinweis);
       navigiere(`/aufgaben/${r.id}`, true);
     } catch (err) {
       const a = err as ApiFehler;
@@ -76,6 +79,7 @@ export function AufgabeNeu() {
     }
   }
 
+  const automatik = ma.daten.mitarbeiter.find((m) => m.id === zustaendig)?.automatik ?? null;
   const kandidaten = (offene.daten?.aufgaben ?? []).filter((a) => !projekt || a.projekt_slug === projekt);
 
   return (
@@ -116,13 +120,21 @@ export function AufgabeNeu() {
             </label>
             <label class="feld breit">
               <span>Zuständig</span>
-              <Auswahl class="eingabe" name="zustaendig_id" defaultValue="">
+              <select class="eingabe" name="zustaendig_id" value={zustaendig} onChange={(e) => setZustaendig((e.target as HTMLSelectElement).value)}>
                 <option value="">Noch offen – später zuweisen</option>
-                {ma.daten.mitarbeiter.filter((m) => m.anbieter !== 'flexibel').map((m) => (
-                  <option value={m.id} key={m.id}>{m.rolle} – {m.name} ({ZUGANG_TEXT[m.zugang]})</option>
+                {ma.daten.mitarbeiter.filter((m) => m.anbieter !== 'flexibel' || m.automatik).map((m) => (
+                  <option value={m.id} key={m.id}>
+                    {m.rolle} – {m.name} ({m.automatik ? 'arbeitet automatisch' : `${ZUGANG_TEXT[m.zugang]}, per Kopieren`})
+                  </option>
                 ))}
-              </Auswahl>
+              </select>
             </label>
+            {automatik && (
+              <label class="reihe breit" style={{ gap: 8, fontSize: 14 }}>
+                <input type="checkbox" name="automatisch_starten" value="ja" defaultChecked />
+                Sofort automatisch bearbeiten lassen – {automatik === 'workers_ai' ? 'kostenlos über Workers AI' : 'Claude Code auf GitHub mit Ihrem Abo'}, ohne Kopieren
+              </label>
+            )}
             {kandidaten.length > 0 && (
               <fieldset class="feld breit" style={{ border: 0, padding: 0, margin: 0 }}>
                 <span>Hängt ab von (optional)</span>

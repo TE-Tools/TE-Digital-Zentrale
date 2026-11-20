@@ -63,6 +63,8 @@
         "bindings": [{ "name": "LIVE", "class_name": "ZentraleLive" }]
       },
       "triggers": { "crons": [] },
+      // Automatik „Assistent“: Workers AI im eigenen Konto (10.000 Neurons/Tag gratis, danach Pause – keine Kosten im Free-Tarif)
+      "ai": { "binding": "AI" },
       "ratelimits": [
         { "name": "RL_ANMELDUNG", "namespace_id": "2611191", "simple": { "limit": 10, "period": 60 } },
         { "name": "RL_MCP", "namespace_id": "2611192", "simple": { "limit": 120, "period": 60 } },

@@ -112,6 +112,7 @@ describe('Dashboard', () => {
       'technik',
       'marketing',
       'qualitaet',
+      'assistent',
       'produkt',
     ]);
     expect(r.body.zahlen.offene_freigaben).toBe(0);
